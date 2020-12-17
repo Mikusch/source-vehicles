@@ -272,15 +272,15 @@ public void PropVehicleDriveable_Think(int vehicle)
 			if (enterAnimOn)
 			{
 				//Show different key hints based on vehicle type
-				VehicleType type = view_as<VehicleType>(GetEntProp(vehicle, Prop_Data, "m_nVehicleType"));
-				switch (type)
+				switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
 				{
 					case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
 					case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
 				}
+				
+				AcceptEntityInput(vehicle, "TurnOn");
 			}
 			
-			AcceptEntityInput(vehicle, "TurnOn");
 			SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, !exitAnimOn);
 		}
 	}
