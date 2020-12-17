@@ -1,0 +1,22 @@
+"Phrases"
+{
+	"#Hint_VehicleKeys"
+	{
+		"en"	"%%+speed%% TURBO %%+jump%% HANDBRAKE"
+	}
+	
+	"#Menu_SpawnVehicle"
+	{
+		"en"	"Select a vehicle to spawn"
+	}
+	
+	"#Vehicle_HL2_Jeep"
+	{
+		"en"	"Jeep"
+	}
+	
+	"#Vehicle_HL2_Airboat"
+	{
+		"en"	"Airboat"
+	}
+}

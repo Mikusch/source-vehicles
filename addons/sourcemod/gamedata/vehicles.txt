@@ -1,0 +1,67 @@
+"Games"
+{
+	"tf"
+	{
+		"Signatures"
+		{
+			"CTFPlayerMove::SetupMove"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTFPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x10\x56\x8B\x75\x08\x89\x4D\xFC"
+			}
+		}
+		"Offsets"
+		{
+			"CBaseServerVehicle::SetupMove"
+			{
+				"linux"		"4"
+				"windows"	"4"
+			}
+			"CBaseServerVehicle::HandlePassengerExit"
+			{
+				"linux"		"18"
+				"windows"	"18"
+			}
+			"CBaseServerVehicle::HandleEntryExitFinish"
+			{
+				"linux"		"22"
+				"windows"	"22"
+			}
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"194"
+				"windows"	"193"
+			}
+		}
+		"Functions"
+		{
+			"CTFPlayerMove::SetupMove"
+			{
+				"signature"	"CTFPlayerMove::SetupMove"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"		"ignore"
+				"arguments"
+				{
+					"player"
+					{
+						"type"	"cbaseentity"
+					}
+					"ucmd"
+					{
+						"type"	"int"
+					}
+					"pHelper"
+					{
+						"type"	"int"
+					}
+					"move"
+					{
+						"type"	"int"
+					}
+				}
+			}
+		}
+	}
+}
