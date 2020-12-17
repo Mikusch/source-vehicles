@@ -71,6 +71,7 @@ enum struct Vehicle
 ConVar tf_vehicle_lock_speed;
 
 ArrayList g_AllVehicles;
+
 bool g_ClientInUse[MAXPLAYERS + 1];
 
 #include "vehicles/dhooks.sp"
@@ -147,7 +148,6 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_PostThink, Client_PostThink);
 	g_ClientInUse[client] = false;
 }
-
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
@@ -260,13 +260,29 @@ public void PropVehicleDriveable_Think(int vehicle)
 {
 	SDKCall_StudioFrameAdvance(vehicle);
 	
+	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
+	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
 	
-	if (GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished") && (GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn") || exitAnimOn))
+	if (sequenceFinished && (enterAnimOn || exitAnimOn))
 	{
-		ShowKeyHintText(GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer"), "%t", "#Hint_VehicleKeys");
-		AcceptEntityInput(vehicle, "TurnOn");
-		SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, !exitAnimOn);
+		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (client != INVALID_ENT_REFERENCE)
+		{
+			if (enterAnimOn)
+			{
+				//Show different key hints based on vehicle type
+				VehicleType type = view_as<VehicleType>(GetEntProp(vehicle, Prop_Data, "m_nVehicleType"));
+				switch (type)
+				{
+					case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+					case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				}
+			}
+			
+			AcceptEntityInput(vehicle, "TurnOn");
+			SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, !exitAnimOn);
+		}
 	}
 }
 
