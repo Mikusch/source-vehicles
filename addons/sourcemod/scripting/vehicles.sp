@@ -189,9 +189,19 @@ public void OnEntityDestroyed(int entity)
 	{
 		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
 		if (0 < client <= MaxClients)
-			SDKCall_HandlePassengerExit(entity, client);
+			AcceptEntityInput(client, "ClearParent");
 	}
 }
+
+//TODO:
+//-Vehicle ownership
+//-Deletion
+//
+//Menu:
+//-Spawn Vehicle for all
+//-Spawn vehicle for player
+//-Delete vehicle
+//-Delete all vehicless
 
 public int CreateVehicle(int client, Vehicle config)
 {
@@ -288,7 +298,7 @@ public void PropVehicleDriveable_Think(int vehicle)
 
 public void ShowKeyHintText(int client, const char[] format, any...)
 {
-	char buffer[255];
+	char buffer[256];
 	SetGlobalTransTarget(client);
 	VFormat(buffer, sizeof(buffer), format, 3);
 	
@@ -315,7 +325,13 @@ public Address GetServerVehicle(int vehicle)
 
 public Action ConCmd_VehicleMenu(int client, int args)
 {
-	Menu menu = new Menu(MenuHandler_SpawnVehicle);
+	OpenVehicleMenu(client);
+	return Plugin_Handled;
+}
+
+public void OpenVehicleMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_SpawnVehicle, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_SpawnVehicle");
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
@@ -329,8 +345,6 @@ public Action ConCmd_VehicleMenu(int client, int args)
 	
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
-	
-	return Plugin_Handled;
 }
 
 public bool GetConfigByName(const char[] name, Vehicle buffer)
@@ -344,7 +358,6 @@ public bool GetConfigByName(const char[] name, Vehicle buffer)
 
 public int MenuHandler_SpawnVehicle(Menu menu, MenuAction action, int param1, int param2)
 {
-	//TODO: Translations
 	switch (action)
 	{
 		case MenuAction_Select:
@@ -352,11 +365,27 @@ public int MenuHandler_SpawnVehicle(Menu menu, MenuAction action, int param1, in
 			char info[32];
 			Vehicle config;
 			if (menu.GetItem(param2, info, sizeof(info)) && GetConfigByName(info, config))
+			{
+				OpenVehicleMenu(param1);
 				CreateVehicle(param1, config);
+			}
+		}
+		case MenuAction_DisplayItem:
+		{
+			char info[32], display[64];
+			Vehicle config;
+			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigByName(info, config))
+			{
+				SetGlobalTransTarget(param1);
+				Format(display, sizeof(display), "%t", config.displayName);
+				return RedrawMenuItem(display);
+			}
 		}
 		case MenuAction_End:
 		{
 			delete menu;
 		}
 	}
+	
+	return 0;
 }
