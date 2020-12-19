@@ -142,8 +142,20 @@ public void OnPluginStart()
 		kv.GoBack();
 	}
 	
+	//Allow players to execute +use
+	ConVar tf_allow_player_use = FindConVar("tf_allow_player_use");
+	if (tf_allow_player_use != null)
+		tf_allow_player_use.BoolValue = true;
+	
 	DHooks_Initialize(gamedata);
 	SDKCalls_Initialize(gamedata);
+}
+
+public void OnPluginEnd()
+{
+	ConVar tf_allow_player_use = FindConVar("tf_allow_player_use");
+	if (tf_allow_player_use != null)
+		ResetConVar(tf_allow_player_use);
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -333,6 +345,12 @@ public Address GetServerVehicle(int vehicle)
 
 public Action ConCmd_VehicleMenu(int client, int args)
 {
+	if (client == 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	
 	OpenVehicleMenu(client);
 	return Plugin_Handled;
 }
