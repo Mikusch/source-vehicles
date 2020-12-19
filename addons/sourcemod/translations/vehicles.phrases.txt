@@ -17,11 +17,11 @@
 	
 	"#Vehicle_HL2_Jeep"
 	{
-		"en"	"Jeep"
+		"en"	"Half-Life 2 Jeep"
 	}
 	
 	"#Vehicle_HL2_Airboat"
 	{
-		"en"	"Airboat"
+		"en"	"Half-Life 2 Airboat"
 	}
 }

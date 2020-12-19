@@ -38,12 +38,12 @@ enum VehicleType
 
 enum struct Vehicle
 {
-	char name[256]; /**< Name of vehicle */
-	char displayName[256];
-	char model[PLATFORM_MAX_PATH]; /**< Vehicle model */
-	int skin; /**< Model skin */
-	char vehiclescript[PLATFORM_MAX_PATH]; /**< Vehicle script path */
-	VehicleType type; /**< The type of vehicle */
+	char name[256];							/**< Unique identifier of the vehicle */
+	char displayName[256];					/**< Display name of the vehicle */
+	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
+	int skin;								/**< Model skin */
+	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
+	VehicleType type;						/**< The type of vehicle */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -103,18 +103,26 @@ public void OnPluginStart()
 	
 	RegConsoleCmd("sm_vehicle", ConCmd_VehicleMenu);
 	
-	g_AllVehicles = new ArrayList(sizeof(Vehicle));
-	
-	char filePath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, filePath, sizeof(filePath), "configs/vehicles/vehicles.cfg");
-	
 	AddCommandListener(Console_VoiceMenu, "voicemenu");
 	
+	//Hook all clients
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (IsClientInGame(client))
 			OnClientPutInServer(client);
 	}
+	
+	//Hook all vehicles
+	int vehicle = MaxClients + 1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
+	}
+	
+	g_AllVehicles = new ArrayList(sizeof(Vehicle));
+	
+	char filePath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, filePath, sizeof(filePath), "configs/vehicles/vehicles.cfg");
 	
 	KeyValues kv = new KeyValues("Vehicles");
 	if (kv.ImportFromFile(filePath))
