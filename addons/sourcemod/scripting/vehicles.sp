@@ -101,7 +101,7 @@ public void OnPluginStart()
 	
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	
-	RegConsoleCmd("sm_vehicle", ConCmd_VehicleMenu);
+	RegConsoleCmd("sm_vehicle", ConCmd_VehicleMenu, _, ADMFLAG_ROOT);
 	
 	AddCommandListener(Console_VoiceMenu, "voicemenu");
 	
@@ -147,6 +147,11 @@ public void OnPluginStart()
 	if (tf_allow_player_use != null)
 		tf_allow_player_use.BoolValue = true;
 	
+	//Enable collisions
+	ConVar sv_turbophysics = FindConVar("sv_turbophysics");
+	if (sv_turbophysics != null)
+		sv_turbophysics.BoolValue = false;
+	
 	DHooks_Initialize(gamedata);
 	SDKCalls_Initialize(gamedata);
 }
@@ -156,6 +161,10 @@ public void OnPluginEnd()
 	ConVar tf_allow_player_use = FindConVar("tf_allow_player_use");
 	if (tf_allow_player_use != null)
 		ResetConVar(tf_allow_player_use);
+	
+	ConVar sv_turbophysics = FindConVar("sv_turbophysics");
+	if (sv_turbophysics != null)
+		ResetConVar(sv_turbophysics);
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -166,6 +175,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_PostThink, Client_PostThink);
+	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
 }
 
@@ -250,6 +260,26 @@ public int CreateVehicle(int client, Vehicle config)
 	}
 	
 	return INVALID_ENT_REFERENCE;
+}
+
+public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
+{
+	if (damagetype & DMG_VEHICLE)
+	{
+		char classname[256];
+		GetEntityClassname(inflictor, classname, sizeof(classname));
+		if (StrEqual(VEHICLE_CLASSNAME, classname))
+		{
+			int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
+			if (0 < driver <= MaxClients && victim != driver)
+			{
+				attacker = driver;
+				return Plugin_Changed;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
 }
 
 stock bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
