@@ -28,12 +28,12 @@
 	
 	"#Menu_Item_DestroyVehicle"
 	{
-		"en"	"Remove vehicle (!destroyvehicle)"
+		"en"	"Remove vehicle (!removevehicle)"
 	}
 	
 	"#Menu_Item_DestroyAllVehicles"
 	{
-		"en"	"Remove all vehicles (!destroyallvehicles)"
+		"en"	"Remove all vehicles (!removeallvehicles)"
 	}
 	
 	"#Command_CreateVehicle_InvalidName"

@@ -116,9 +116,13 @@ public void OnPluginStart()
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use", _, true, 0.0, true, 1.0);
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_createvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_spawnvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_destroyvehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_removevehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_removeallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
