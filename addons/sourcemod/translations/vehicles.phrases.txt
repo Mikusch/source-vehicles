@@ -10,9 +10,51 @@
 		"en"	"%%+forward%% SPEED UP %%+back%% SLOW DOWN %%+moveleft%% TURN LEFT %%+moveright%% TURN RIGHT"
 	}
 	
-	"#Menu_SpawnVehicle"
+	"#Menu_Title_Main"
+	{
+		"#format"	"{1:s},{2:s},{3:s}"
+		"en"		"Welcome to the vehicle plugin {1} by {2}\n{3}"
+	}
+	
+	"#Menu_Title_CreateVehicle"
 	{
 		"en"	"Select a vehicle to spawn"
+	}
+	
+	"#Menu_Item_CreateVehicle"
+	{
+		"en"	"Spawn vehicle (!createvehicle)"
+	}
+	
+	"#Menu_Item_DestroyVehicle"
+	{
+		"en"	"Remove vehicle (!destroyvehicle)"
+	}
+	
+	"#Menu_Item_DestroyAllVehicles"
+	{
+		"en"	"Remove all vehicles (!destroyallvehicles)"
+	}
+	
+	"#Command_CreateVehicle_InvalidName"
+	{
+		"#format"	"{1:s}"
+		"en"		"No vehicle with name \"{1}\" found."
+	}
+	
+	"#Command_DestroyVehicle_Success"
+	{
+		"en"	"Successfully removed the vehicle at your crosshair."
+	}
+	
+	"#Command_DestroyVehicle_NoVehicleFound"
+	{
+		"en"	"Not looking at any valid vehicle to remove."
+	}
+	
+	"#Command_DestroyAllVehicles_Success"
+	{
+		"en"	"Successfully removed all vehicles in the map."
 	}
 	
 	"#Vehicle_HL2_Jeep"

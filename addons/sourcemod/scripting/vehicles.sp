@@ -26,6 +26,10 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+#define PLUGIN_VERSION	"v1.0"
+#define PLUGIN_AUTHOR	"Mikusch"
+#define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
+
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 #define CONFIG_FILEPATH		"configs/vehicles/vehicles.cfg"
 
@@ -111,7 +115,10 @@ public void OnPluginStart()
 	tf_vehicle_physics_damage_multiplier = CreateConVar("tf_vehicle_physics_damage_multiplier", "1.0", "Multiplier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use", _, true, 0.0, true, 1.0);
 	
-	RegConsoleCmd("sm_vehicle", ConCmd_VehicleMenu, _, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_createvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_destroyvehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -273,7 +280,7 @@ bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
 	return true;
 }
 
-bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
+public bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
 {
 	return entity != data;
 }
@@ -353,7 +360,7 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 	}
 }
 
-public Action ConCmd_VehicleMenu(int client, int args)
+public Action ConCmd_OpenVehicleMenu(int client, int args)
 {
 	if (client == 0)
 	{
@@ -361,7 +368,83 @@ public Action ConCmd_VehicleMenu(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	OpenVehicleMenu(client);
+	DisplayMainVehicleMenu(client);
+	return Plugin_Handled;
+}
+
+public Action ConCmd_CreateVehicle(int client, int args)
+{
+	if (client == 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	
+	if (args == 0)
+	{
+		DisplayVehicleCreateMenu(client);
+		return Plugin_Handled;
+	}
+	
+	char name[256];
+	GetCmdArgString(name, sizeof(name));
+	
+	Vehicle config;
+	if (!GetConfigByName(name, config))
+	{
+		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", name);
+		return Plugin_Handled;
+	}
+	
+	CreateVehicle(client, config);
+	return Plugin_Handled;
+}
+
+public Action ConCmd_DestroyVehicle(int client, int args)
+{
+	if (client == 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	
+	float origin[3], angles[3], end[3];
+	GetClientEyePosition(client, origin);
+	GetClientEyeAngles(client, angles);
+	
+	Handle trace = TR_TraceRayFilterEx(origin, angles, MASK_SOLID, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
+	TR_GetEndPosition(end, trace);
+	
+	int entity = TR_GetEntityIndex(trace);
+	
+	delete trace;
+	
+	if (entity > MaxClients)
+	{
+		char classname[256];
+		if (GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME))
+		{
+			RemoveEntity(entity);
+			ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
+		}
+	}
+	else
+	{
+		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_NoVehicleFound");
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action ConCmd_DestroyAllVehicles(int client, int args)
+{
+	int vehicle = MaxClients + 1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		RemoveEntity(vehicle);
+	}
+	
+	ReplyToCommand(client, "%t", "#Command_DestroyAllVehicles_Success");
 	return Plugin_Handled;
 }
 
@@ -433,10 +516,67 @@ public void PropVehicleDriveable_Think(int vehicle)
 // Menus
 //-----------------------------------------------------------------------------
 
-void OpenVehicleMenu(int client)
+void DisplayMainVehicleMenu(int client)
 {
-	Menu menu = new Menu(MenuHandler_SpawnVehicle, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
-	menu.SetTitle("%t", "#Menu_SpawnVehicle");
+	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
+	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
+	
+	menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
+	menu.AddItem("vehicle_destroy", "#Menu_Item_DestroyVehicle");
+	menu.AddItem("vehicle_destroyall", "#Menu_Item_DestroyAllVehicles");
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char info[32];
+			if (menu.GetItem(param2, info, sizeof(info)))
+			{
+				if (StrEqual(info, "vehicle_create"))
+				{
+					DisplayVehicleCreateMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_destroy"))
+				{
+					FakeClientCommand(param1, "sm_destroyvehicle");
+					DisplayMainVehicleMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_destroyall"))
+				{
+					FakeClientCommand(param1, "sm_destroyallvehicles");
+					DisplayMainVehicleMenu(param1);
+				}
+			}
+		}
+		case MenuAction_DisplayItem:
+		{
+			char info[32], display[64];
+			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)))
+			{
+				SetGlobalTransTarget(param1);
+				Format(display, sizeof(display), "%t", display);
+				return RedrawMenuItem(display);
+			}
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
+	
+	return 0;
+}
+
+void DisplayVehicleCreateMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_VehicleCreateMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
+	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
@@ -448,21 +588,21 @@ void OpenVehicleMenu(int client)
 	}
 	
 	menu.ExitButton = true;
+	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
-public int MenuHandler_SpawnVehicle(Menu menu, MenuAction action, int param1, int param2)
+public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
 		case MenuAction_Select:
 		{
 			char info[32];
-			Vehicle config;
-			if (menu.GetItem(param2, info, sizeof(info)) && GetConfigByName(info, config))
+			if (menu.GetItem(param2, info, sizeof(info)))
 			{
-				OpenVehicleMenu(param1);
-				CreateVehicle(param1, config);
+				FakeClientCommand(param1, "sm_createvehicle %s", info);
+				DisplayVehicleCreateMenu(param1);
 			}
 		}
 		case MenuAction_DisplayItem:
@@ -474,6 +614,13 @@ public int MenuHandler_SpawnVehicle(Menu menu, MenuAction action, int param1, in
 				SetGlobalTransTarget(param1);
 				Format(display, sizeof(display), "%t", config.displayName);
 				return RedrawMenuItem(display);
+			}
+		}
+		case MenuAction_Cancel:
+		{
+			if (param2 == MenuCancel_ExitBack)
+			{
+				DisplayMainVehicleMenu(param1);
 			}
 		}
 		case MenuAction_End:
