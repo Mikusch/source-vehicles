@@ -676,7 +676,7 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam param)
 // SDK Calls
 //-----------------------------------------------------------------------------
 
-static Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
+Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseAnimating::StudioFrameAdvance");
@@ -688,7 +688,7 @@ static Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 	return call;
 }
 
-static Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
+Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Raw);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::SetupMove");
@@ -704,7 +704,7 @@ static Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	return call;
 }
 
-static Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
+Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Raw);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::HandleEntryExitFinish");
@@ -718,13 +718,13 @@ static Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 	return call;
 }
 
-public void SDKCall_StudioFrameAdvance(int entity)
+void SDKCall_StudioFrameAdvance(int entity)
 {
 	if (g_SDKCallStudioFrameAdvance != null)
 		SDKCall(g_SDKCallStudioFrameAdvance, entity);
 }
 
-public void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address helper, Address move)
+void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address helper, Address move)
 {
 	if (g_SDKCallVehicleSetupMove != null)
 	{
@@ -734,7 +734,7 @@ public void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Addr
 	}
 }
 
-public void SDKCall_HandleEntryExitFinish(int vehicle, bool exitAnimOn, bool resetAnim)
+void SDKCall_HandleEntryExitFinish(int vehicle, bool exitAnimOn, bool resetAnim)
 {
 	if (g_SDKCallHandleEntryExitFinish != null)
 	{
