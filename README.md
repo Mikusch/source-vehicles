@@ -42,6 +42,7 @@ More documentation can be found in the [default configuration](/addons/sourcemod
 		"name"			"hl2_jeep"
 		"display_name"	"#Vehicle_HL2_Jeep"
 		"model"			"models/buggy.mdl"
+		"skin"			"0"
 		"vehiclescript"	"scripts/vehicles/jeep_test.txt"
 		"type"			"car_wheels"
 	}
