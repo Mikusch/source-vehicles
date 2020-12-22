@@ -22,10 +22,18 @@ This plugin bundles the required entity fixes and a few configurable nice-to-hav
 1. Download the latest version from the [releases](https://github.com/Mikusch/tf-vehicles/releases) page
 2. Extract the contents of the archive into your server directory
 3. Type `sm plugins load vehicles` into your server console or restart your server
-4. Use the `sm_vehicle` console command in-game to spawn vehicles
+
+## Usage
+There is a menu combining all of the plugin's features that can be accessed using `sm_vehicle`.
+
+Additionally, you may use `sm_createvehicle` to create and `sm_destroyvehicle` to remove a vehicle. To remove all vehicles in the map, use `sm_destroyallvehicles`.
 
 ## Configuration
-The `vehicles.cfg` allows you to add your own vehicles. Each vehicle requires at least a model, a vehicle script, and a vehicle type. More documentation can be found in the config itself.
+The `vehicles.cfg` allows you to add your own vehicles. Each vehicle requires at least a model, a vehicle script, and a vehicle type.
+
+More documentation can be found in the [default configuration](/addons/sourcemod/configs/vehicles/vehicles.cfg).
+
+**Example:**
 ```
 "Vehicles"
 {
@@ -37,19 +45,10 @@ The `vehicles.cfg` allows you to add your own vehicles. Each vehicle requires at
 		"vehiclescript"	"scripts/vehicles/jeep_test.txt"
 		"type"			"car_wheels"
 	}
-	
-	"1"
-	{
-		"name"			"hl2_airboat"
-		"display_name"	"#Vehicle_HL2_Airboat"
-		"model"			"models/airboat.mdl"
-		"vehiclescript"	"scripts/vehicles/airboat.txt"
-		"type"			"airboat_raycast"
-	}
 }
 ```
 
 ## Physics Damage
 This plugin will automatically enable physics collisions and damage to allow vehicles to collide with other players.
 
-If you intend to use these vehicles in a friendly environment without any combat aspects, make sure to set `sv_turbophysics` to `1`. It will allow vehicles to pass right through other players.
+If you intend to use these vehicles in a friendly environment without any combat aspects, make sure to set `sv_turbophysics` to `1`. It will allow vehicles to pass through other players.
