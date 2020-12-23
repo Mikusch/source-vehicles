@@ -1,0 +1,69 @@
+"Phrases"
+{
+	"#Hint_VehicleKeys_Car"
+	{
+		"ru"	"%%+speed%% - ГАЗ %%+jump%% - РУЧНОЙ ТОРМОЗ"
+	}
+	
+	"#Hint_VehicleKeys_Airboat"
+	{
+		"ru"	"%%+forward%% УСКОРЕНИЕ %%+back%% ТОРМОЗ %%+moveleft%% НАЛЕВО %%+moveright%% НАПРАВО"
+	}
+	
+	"#Menu_Title_Main"
+	{
+		"#format"	"{1:s},{2:s},{3:s}"
+		"ru"		"Добро пожаловать в плагин транспорта {1} от {2}\n{3}"
+	}
+	
+	"#Menu_Title_CreateVehicle"
+	{
+		"ru"	"Выберите транспорт для создания"
+	}
+	
+	"#Menu_Item_CreateVehicle"
+	{
+		"ru"	"Создать транспорт (!createvehicle)"
+	}
+	
+	"#Menu_Item_DestroyVehicle"
+	{
+		"ru"	"Удалить транспорт (!removevehicle)"
+	}
+	
+	"#Menu_Item_DestroyAllVehicles"
+	{
+		"ru"	"Удалить весь созданный транспорт (!removeallvehicles)"
+	}
+	
+	"#Command_CreateVehicle_InvalidName"
+	{
+		"#format"	"{1:s}"
+		"ru"		"Транспортное средство с названием \"{1}\" не найдено."
+	}
+	
+	"#Command_DestroyVehicle_Success"
+	{
+		"ru"	"Транспортное средство у вашего прицела успешно удалено."
+	}
+	
+	"#Command_DestroyVehicle_NoVehicleFound"
+	{
+		"ru"	"Нет подходящего транспортного средства для удаления."
+	}
+	
+	"#Command_DestroyAllVehicles_Success"
+	{
+		"ru"	"Успешно удалены все транспортные средства с карты."
+	}
+	
+	"#Vehicle_HL2_Jeep"
+	{
+		"ru"	"Багги Half-Life 2"
+	}
+	
+	"#Vehicle_HL2_Airboat"
+	{
+		"ru"	"Катер на воздушной подушке Half-Life 2"
+	}
+}
