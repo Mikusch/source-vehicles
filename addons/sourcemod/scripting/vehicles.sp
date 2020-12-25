@@ -560,7 +560,7 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 		}
 		case MenuAction_DisplayItem:
 		{
-			char info[32], display[64];
+			char info[32], display[128];
 			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)))
 			{
 				SetGlobalTransTarget(param1);
@@ -611,7 +611,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 		}
 		case MenuAction_DisplayItem:
 		{
-			char info[32], display[64];
+			char info[32], display[128];
 			Vehicle config;
 			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigByName(info, config))
 			{
