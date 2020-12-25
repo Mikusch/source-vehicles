@@ -423,14 +423,11 @@ public Action ConCmd_DestroyVehicle(int client, int args)
 	
 	delete trace;
 	
-	if (entity > MaxClients)
+	char classname[256];
+	if (entity > MaxClients && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME))
 	{
-		char classname[256];
-		if (GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME))
-		{
-			RemoveEntity(entity);
-			ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
-		}
+		RemoveEntity(entity);
+		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
 	}
 	else
 	{
