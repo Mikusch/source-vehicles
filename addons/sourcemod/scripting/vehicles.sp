@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"v1.0"
+#define PLUGIN_VERSION	"v1.1"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -208,11 +208,19 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	return Plugin_Continue;
 }
 
+public void OnEntityCreated(int entity)
+{
+	if (IsEntityVehicle(entity))
+	{
+		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
+		SDKHook(entity, SDKHook_Spawn, PropVehicleDriveable_Spawn);
+		SDKHook(entity, SDKHook_SpawnPost, PropVehicleDriveable_SpawnPost);
+	}
+}
+
 public void OnEntityDestroyed(int entity)
 {
-	char classname[256];
-	GetEntityClassname(entity, classname, sizeof(classname));
-	if (StrEqual(classname, VEHICLE_CLASSNAME))
+	if (IsEntityVehicle(entity))
 	{
 		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
 		if (0 < client <= MaxClients)
@@ -226,7 +234,7 @@ public void OnEntityDestroyed(int entity)
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-int CreateVehicle(int client, Vehicle config)
+void CreateVehicle(int client, Vehicle config)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != INVALID_ENT_REFERENCE)
@@ -240,19 +248,11 @@ int CreateVehicle(int client, Vehicle config)
 		
 		if (DispatchSpawn(vehicle))
 		{
-			SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
-			
 			AcceptEntityInput(vehicle, "HandBrakeOn");
-			
-			SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
 			
 			MoveEntityToClientEye(vehicle, client, MASK_SOLID | MASK_WATER);
 		}
-		
-		return EntIndexToEntRef(vehicle);
 	}
-	
-	return INVALID_ENT_REFERENCE;
 }
 
 bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
@@ -301,6 +301,12 @@ void ShowKeyHintText(int client, const char[] format, any...)
 	EndMessage();
 }
 
+bool IsEntityVehicle(int entity)
+{
+	char classname[256];
+	return GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
+}
+
 Address GetServerVehicle(int vehicle)
 {
 	static int offset = -1;
@@ -316,11 +322,24 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
-bool GetConfigByName(const char[] name, Vehicle buffer)
+bool GetConfigByName(const char[] name, Vehicle buffer, bool exactMatch = true)
 {
-	int index = g_AllVehicles.FindString(name);
-	if (index != -1)
-		return g_AllVehicles.GetArray(index, buffer, sizeof(buffer)) > 0;
+	for (int i = 0; i < g_AllVehicles.Length; i++)
+	{
+		if (g_AllVehicles.GetArray(i, buffer, sizeof(buffer)) > 0)
+		{
+			if (exactMatch)
+			{
+				if (StrEqual(name, buffer.name))
+					return true;
+			}
+			else 
+			{
+				if (StrContains(name, buffer.name) != -1)
+					return true;
+			}
+		}
+	}
 	
 	return false;
 }
@@ -423,8 +442,7 @@ public Action ConCmd_DestroyVehicle(int client, int args)
 	
 	delete trace;
 	
-	char classname[256];
-	if (entity > MaxClients && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME))
+	if (IsEntityVehicle(entity))
 	{
 		RemoveEntity(entity);
 		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
@@ -464,19 +482,14 @@ public void Client_PostThink(int client)
 
 public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-	if (damagetype & DMG_VEHICLE)
+	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
 	{
-		char classname[256];
-		GetEntityClassname(inflictor, classname, sizeof(classname));
-		if (StrEqual(VEHICLE_CLASSNAME, classname))
+		int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
+		if (0 < driver <= MaxClients && victim != driver)
 		{
-			int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
-			if (0 < driver <= MaxClients && victim != driver)
-			{
-				damage *= tf_vehicle_physics_damage_multiplier.FloatValue;
-				attacker = driver;
-				return Plugin_Changed;
-			}
+			damage *= tf_vehicle_physics_damage_multiplier.FloatValue;
+			attacker = driver;
+			return Plugin_Changed;
 		}
 	}
 	
@@ -511,6 +524,23 @@ public void PropVehicleDriveable_Think(int vehicle)
 			SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, !exitAnimOn);
 		}
 	}
+}
+
+public void PropVehicleDriveable_Spawn(int vehicle)
+{
+	char targetname[256];
+	GetEntPropString(vehicle, Prop_Data, "m_iName", targetname, sizeof(targetname));
+	
+	Vehicle config;
+	if (GetConfigByName(targetname, config, false))
+	{
+		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
+	}
+}
+
+public void PropVehicleDriveable_SpawnPost(int vehicle)
+{
+	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
 //-----------------------------------------------------------------------------
