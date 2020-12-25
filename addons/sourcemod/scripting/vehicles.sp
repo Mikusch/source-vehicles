@@ -335,7 +335,7 @@ bool GetConfigByName(const char[] name, Vehicle buffer, bool exactMatch = true)
 			}
 			else 
 			{
-				if (StrContains(name, buffer.name) == 0)
+				if (StrContains(name, buffer.name) != -1)
 					return true;
 			}
 		}
