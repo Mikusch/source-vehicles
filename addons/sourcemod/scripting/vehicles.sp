@@ -322,11 +322,24 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
-bool GetConfigByName(const char[] name, Vehicle buffer)
+bool GetConfigByName(const char[] name, Vehicle buffer, bool exactMatch = true)
 {
-	int index = g_AllVehicles.FindString(name);
-	if (index != -1)
-		return g_AllVehicles.GetArray(index, buffer, sizeof(buffer)) > 0;
+	for (int i = 0; i < g_AllVehicles.Length; i++)
+	{
+		if (g_AllVehicles.GetArray(i, buffer, sizeof(buffer)) > 0)
+		{
+			if (exactMatch)
+			{
+				if (StrEqual(name, buffer.name))
+					return true;
+			}
+			else 
+			{
+				if (StrContains(name, buffer.name) == 0)
+					return true;
+			}
+		}
+	}
 	
 	return false;
 }
@@ -519,7 +532,7 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 	GetEntPropString(vehicle, Prop_Data, "m_iName", targetname, sizeof(targetname));
 	
 	Vehicle config;
-	if (GetConfigByName(targetname, config))
+	if (GetConfigByName(targetname, config, false))
 	{
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
 	}
