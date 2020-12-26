@@ -223,6 +223,9 @@ public void OnEntityCreated(int entity)
 
 public void OnEntityDestroyed(int entity)
 {
+	if (entity == INVALID_ENT_REFERENCE)
+		return;
+	
 	if (IsEntityVehicle(entity))
 	{
 		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
