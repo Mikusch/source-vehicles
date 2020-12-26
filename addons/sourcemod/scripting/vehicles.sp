@@ -133,13 +133,6 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 	}
 	
-	//Hook all vehicles
-	int vehicle = MaxClients + 1;
-	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
-	{
-		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
-	}
-	
 	g_AllVehicles = new ArrayList(sizeof(Vehicle));
 	
 	char filePath[PLATFORM_MAX_PATH];
@@ -187,6 +180,16 @@ public void OnPluginEnd()
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	MarkNativeAsOptional("LoadSoundScript");
+}
+
+public void OnMapStart()
+{
+	//Hook all vehicles
+	int vehicle;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
+	}
 }
 
 public void OnClientPutInServer(int client)
