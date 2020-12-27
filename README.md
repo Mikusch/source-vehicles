@@ -29,9 +29,10 @@ There is a menu combining all of the plugin's features that can be accessed usin
 Additionally, you may use `sm_createvehicle` to create and `sm_destroyvehicle` to remove a vehicle. To remove all vehicles in the map, use `sm_destroyallvehicles`.
 
 ## Configuration
-The `vehicles.cfg` allows you to add your own vehicles. Each vehicle requires at least a model, a vehicle script, and a vehicle type.
+The vehicle configuration allows you to add your own vehicles. Each vehicle requires at least a name, model, vehicle script, and vehicle type.
+More documentation and examples can be found in the [default configuration](/addons/sourcemod/configs/vehicles/vehicles.cfg).
 
-More documentation can be found in the [default configuration](/addons/sourcemod/configs/vehicles/vehicles.cfg).
+To learn how to create custom vehicle models and scripts, check out the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedetails/?id=1373837962) guide on Steam.
 
 **Example:**
 ```
@@ -39,12 +40,23 @@ More documentation can be found in the [default configuration](/addons/sourcemod
 {
 	"0"
 	{
-		"name"			"hl2_jeep"
-		"display_name"	"#Vehicle_HL2_Jeep"
-		"model"			"models/buggy.mdl"
+		"name"			"example_vehicle"
+		"display_name"		"#Vehicle_ExampleVehicle"
+		"model"			"models/vehicles/example_vehicle.mdl"
 		"skin"			"0"
-		"vehiclescript"	"scripts/vehicles/jeep_test.txt"
+		"vehiclescript"		"scripts/vehicles/example_vehicle.txt"
 		"type"			"car_wheels"
+		"downloads"
+		{
+			"0"	"models/vehicles/example_vehicle.dx80.vtx"
+			"1"	"models/vehicles/example_vehicle.dx90.vtx"
+			"2"	"models/vehicles/example_vehicle.mdl"
+			"3"	"models/vehicles/example_vehicle.phy"
+			"4"	"models/vehicles/example_vehicle.sw.vtx"
+			"5"	"models/vehicles/example_vehicle.vvd"
+			"6"	"materials/models/vehicles/example_vehicle.vmt"
+			"7"	"materials/models/vehicles/example_vehicle.vtf"
+		}
 	}
 }
 ```
