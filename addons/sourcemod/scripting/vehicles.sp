@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"v1.1"
+#define PLUGIN_VERSION	"v1.2"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -70,6 +70,22 @@ enum struct Vehicle
 			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
 		else if (type[0] != '\0')
 			LogError("Invalid vehicle type '%s'", type);
+		
+		if (kv.JumpToKey("downloads"))
+		{
+			if (kv.GotoFirstSubKey(false))
+			{
+				do
+				{
+					char filename[PLATFORM_MAX_PATH];
+					kv.GetString(NULL_STRING, filename, sizeof(filename));
+					AddFileToDownloadsTable(filename);
+				}
+				while (kv.GotoNextKey(false));
+				kv.GoBack();
+			}
+			kv.GoBack();
+		}
 	}
 }
 
