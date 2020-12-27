@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"v1.2"
+#define PLUGIN_VERSION	"v1.3"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -107,10 +107,10 @@ bool g_ClientInUse[MAXPLAYERS + 1];
 public Plugin myinfo = 
 {
 	name = "Team Fortress 2 Vehicles", 
-	author = "Mikusch", 
+	author = PLUGIN_AUTHOR, 
 	description = "Fully functioning Team Fortress 2 vehicles", 
-	version = "1.0", 
-	url = "https://github.com/Mikusch/tf-vehicles"
+	version = PLUGIN_VERSION, 
+	url = PLUGIN_URL
 }
 
 //-----------------------------------------------------------------------------
@@ -344,22 +344,37 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
-bool GetConfigByName(const char[] name, Vehicle buffer, bool exactMatch = true)
+bool GetConfigByName(const char[] name, Vehicle buffer)
+{
+	int index = g_AllVehicles.FindString(name);
+	if (index != -1)
+		return g_AllVehicles.GetArray(index, buffer, sizeof(buffer)) > 0;
+	
+	return false;
+}
+
+bool GetConfigByModel(const char[] model, Vehicle buffer)
 {
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
 		if (g_AllVehicles.GetArray(i, buffer, sizeof(buffer)) > 0)
 		{
-			if (exactMatch)
-			{
-				if (StrEqual(name, buffer.name))
-					return true;
-			}
-			else 
-			{
-				if (StrContains(name, buffer.name) != -1)
-					return true;
-			}
+			if (StrEqual(model, buffer.model))
+				return true;
+		}
+	}
+	
+	return false;
+}
+
+bool GetConfigByModelAndVehicleScript(const char[] model, const char[] vehiclescript, Vehicle buffer)
+{
+	for (int i = 0; i < g_AllVehicles.Length; i++)
+	{
+		if (g_AllVehicles.GetArray(i, buffer, sizeof(buffer)) > 0)
+		{
+			if (StrEqual(model, buffer.model) && StrEqual(vehiclescript, buffer.vehiclescript))
+				return true;
 		}
 	}
 	
@@ -550,11 +565,20 @@ public void PropVehicleDriveable_Think(int vehicle)
 
 public void PropVehicleDriveable_Spawn(int vehicle)
 {
-	char targetname[256];
-	GetEntPropString(vehicle, Prop_Data, "m_iName", targetname, sizeof(targetname));
+	char model[PLATFORM_MAX_PATH], vehiclescript[PLATFORM_MAX_PATH];
+	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
+	GetEntPropString(vehicle, Prop_Data, "m_vehicleScript", vehiclescript, sizeof(vehiclescript));
 	
 	Vehicle config;
-	if (GetConfigByName(targetname, config, false))
+	
+	//If no script is set, try to find a matching config entry and set it ourselves
+	if (vehiclescript[0] == '\0' && GetConfigByModel(model, config))
+	{
+		vehiclescript = config.vehiclescript;
+		DispatchKeyValue(vehicle, "VehicleScript", config.vehiclescript);
+	}
+	
+	if (GetConfigByModelAndVehicleScript(model, vehiclescript, config))
 	{
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
 	}
