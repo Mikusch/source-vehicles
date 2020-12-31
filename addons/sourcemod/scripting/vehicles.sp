@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"v1.3"
+#define PLUGIN_VERSION	"v1.4"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -93,9 +93,12 @@ ConVar tf_vehicle_lock_speed;
 ConVar tf_vehicle_physics_damage_multiplier;
 ConVar tf_vehicle_voicemenu_use;
 
-Handle g_SDKCallStudioFrameAdvance;
+DynamicHook g_DHookSetPassenger;
+
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallHandleEntryExitFinish;
+Handle g_SDKCallGetDriver;
+Handle g_SDKCallStudioFrameAdvance;
 
 ArrayList g_AllVehicles;
 
@@ -181,10 +184,12 @@ public void OnPluginStart()
 		SetFailState("Could not find vehicles gamedata");
 	
 	CreateDynamicDetour(gamedata, "CTFPlayerMove::SetupMove", DHookCallback_SetupMovePre);
+	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
 	
-	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
+	g_SDKCallGetDriver = PrepSDKCall_GetDriver(gamedata);
+	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	
 	delete gamedata;
 }
@@ -241,13 +246,13 @@ public void OnEntityCreated(int entity)
 
 public void OnEntityDestroyed(int entity)
 {
-	if (entity == INVALID_ENT_REFERENCE)
+	if (entity == -1)
 		return;
 	
 	if (IsEntityVehicle(entity))
 	{
 		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
-		if (0 < client <= MaxClients)
+		if (client != -1)
 		{
 			AcceptEntityInput(client, "ClearParent");
 		}
@@ -261,7 +266,7 @@ public void OnEntityDestroyed(int entity)
 void CreateVehicle(int client, Vehicle config)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
-	if (vehicle != INVALID_ENT_REFERENCE)
+	if (vehicle != -1)
 	{
 		DispatchKeyValue(vehicle, "targetname", config.name);
 		DispatchKeyValue(vehicle, "model", config.model);
@@ -513,7 +518,7 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 public void Client_PostThink(int client)
 {
 	//For some reason IN_USE never gets assigned to m_afButtonPressed inside vehicles, preventing exiting, so let's add it ourselves
-	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") && GetClientButtons(client) & IN_USE)
+	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") != -1 && GetClientButtons(client) & IN_USE)
 	{
 		SetEntProp(client, Prop_Data, "m_afButtonPressed", GetEntProp(client, Prop_Data, "m_afButtonPressed") | IN_USE);
 	}
@@ -524,7 +529,7 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
 	{
 		int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
-		if (0 < driver <= MaxClients && victim != driver)
+		if (driver != -1 && victim != driver)
 		{
 			damage *= tf_vehicle_physics_damage_multiplier.FloatValue;
 			attacker = driver;
@@ -539,29 +544,26 @@ public void PropVehicleDriveable_Think(int vehicle)
 {
 	SDKCall_StudioFrameAdvance(vehicle);
 	
+	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
 	
 	if (sequenceFinished && (enterAnimOn || exitAnimOn))
 	{
-		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-		if (client != INVALID_ENT_REFERENCE)
+		if (enterAnimOn)
 		{
-			if (enterAnimOn)
-			{
-				//Show different key hints based on vehicle type
-				switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
-				{
-					case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-					case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
-				}
-				
-				AcceptEntityInput(vehicle, "TurnOn");
-			}
+			AcceptEntityInput(vehicle, "TurnOn");
 			
-			SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, !exitAnimOn);
+			//Show different key hints based on vehicle type
+			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
+			{
+				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+			}
 		}
+		
+		SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, true);
 	}
 }
 
@@ -588,6 +590,10 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 
 public void PropVehicleDriveable_SpawnPost(int vehicle)
 {
+	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
+	if (g_DHookSetPassenger != null)
+		g_DHookSetPassenger.HookRaw(Hook_Pre, GetServerVehicle(vehicle), DHookCallback_SetPassengerPre);
+	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
@@ -718,11 +724,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback callbackPre = INVALID_FUNCTION, DHookCallback callbackPost = INVALID_FUNCTION)
 {
 	DynamicDetour detour = DynamicDetour.FromConf(gamedata, name);
-	if (!detour)
-	{
-		LogError("Failed to find offset for %s", name);
-	}
-	else
+	if (detour != null)
 	{
 		if (callbackPre != INVALID_FUNCTION)
 			detour.Enable(Hook_Pre, callbackPre);
@@ -730,6 +732,19 @@ void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback cal
 		if (callbackPost != INVALID_FUNCTION)
 			detour.Enable(Hook_Post, callbackPost);
 	}
+	else
+	{
+		LogError("Failed to find offset for %s", name);
+	}
+}
+
+DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
+{
+	DynamicHook hook = DynamicHook.FromConf(gamedata, name);
+	if (hook == null)
+		LogError("Failed to find offset for %s", name);
+	
+	return hook;
 }
 
 public MRESReturn DHookCallback_SetupMovePre(DHookParam param)
@@ -737,7 +752,7 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam param)
 	int client = param.Get(1);
 	
 	int vehicle = GetEntPropEnt(client, Prop_Send, "m_hVehicle");
-	if (vehicle != INVALID_ENT_REFERENCE)
+	if (vehicle != -1)
 	{
 		Address ucmd = param.Get(2);
 		Address helper = param.Get(3);
@@ -747,21 +762,23 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam param)
 	}
 }
 
+public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam params)
+{
+	if (!params.IsNull(2))
+	{
+		SetEntProp(params.Get(2), Prop_Data, "m_bDrawViewmodel", false);
+	}
+	else
+	{
+		int client = SDKCall_GetDriver(vehicle);
+		if (client != -1)
+			SetEntProp(client, Prop_Data, "m_bDrawViewmodel", true);
+	}
+}
+
 //-----------------------------------------------------------------------------
 // SDK Calls
 //-----------------------------------------------------------------------------
-
-Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
-{
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseAnimating::StudioFrameAdvance");
-	
-	Handle call = EndPrepSDKCall();
-	if (call == null)
-		LogError("Failed to create SDKCall: CBaseAnimating::StudioFrameAdvance");
-	
-	return call;
-}
 
 Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 {
@@ -793,10 +810,29 @@ Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 	return call;
 }
 
-void SDKCall_StudioFrameAdvance(int entity)
+Handle PrepSDKCall_GetDriver(GameData gamedata)
 {
-	if (g_SDKCallStudioFrameAdvance != null)
-		SDKCall(g_SDKCallStudioFrameAdvance, entity);
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::GetDriver");
+	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDKCall: CBaseServerVehicle::GetDriver");
+	
+	return call;
+}
+
+Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseAnimating::StudioFrameAdvance");
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogError("Failed to create SDKCall: CBaseAnimating::StudioFrameAdvance");
+	
+	return call;
 }
 
 void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address helper, Address move)
@@ -817,4 +853,18 @@ void SDKCall_HandleEntryExitFinish(int vehicle, bool exitAnimOn, bool resetAnim)
 		if (serverVehicle != Address_Null)
 			SDKCall(g_SDKCallHandleEntryExitFinish, serverVehicle, exitAnimOn, resetAnim);
 	}
+}
+
+int SDKCall_GetDriver(Address serverVehicle)
+{
+	if (g_SDKCallGetDriver != null)
+		return SDKCall(g_SDKCallGetDriver, serverVehicle);
+	
+	return -1;
+}
+
+void SDKCall_StudioFrameAdvance(int entity)
+{
+	if (g_SDKCallStudioFrameAdvance != null)
+		SDKCall(g_SDKCallStudioFrameAdvance, entity);
 }
