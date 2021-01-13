@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"v1.4"
+#define PLUGIN_VERSION	"1.4.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
