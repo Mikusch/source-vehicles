@@ -781,7 +781,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam para
 	}
 }
 
-public MRESReturn DHookCallback_IsPassengerVisible(Address vehicle, DHookReturn ret, DHookParam params)
+public MRESReturn DHookCallback_IsPassengerVisible(Address vehicle, DHookReturn ret)
 {
 	ret.Value = true;
 	return MRES_Supercede;
