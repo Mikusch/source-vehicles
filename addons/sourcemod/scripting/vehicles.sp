@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.4.0"
+#define PLUGIN_VERSION	"1.4.1"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -94,6 +94,7 @@ ConVar tf_vehicle_physics_damage_multiplier;
 ConVar tf_vehicle_voicemenu_use;
 
 DynamicHook g_DHookSetPassenger;
+DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallHandleEntryExitFinish;
@@ -185,6 +186,7 @@ public void OnPluginStart()
 	
 	CreateDynamicDetour(gamedata, "CTFPlayerMove::SetupMove", DHookCallback_SetupMovePre);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
+	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
@@ -594,6 +596,9 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	if (g_DHookSetPassenger != null)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, GetServerVehicle(vehicle), DHookCallback_SetPassengerPre);
 	
+	if (g_DHookIsPassengerVisible != null)
+		g_DHookIsPassengerVisible.HookRaw(Hook_Post, GetServerVehicle(vehicle), DHookCallback_IsPassengerVisible);
+	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
@@ -774,6 +779,12 @@ public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam para
 		if (client != -1)
 			SetEntProp(client, Prop_Data, "m_bDrawViewmodel", true);
 	}
+}
+
+public MRESReturn DHookCallback_IsPassengerVisible(Address vehicle, DHookReturn ret, DHookParam params)
+{
+	ret.Value = true;
+	return MRES_Supercede;
 }
 
 //-----------------------------------------------------------------------------
