@@ -128,7 +128,9 @@ public void OnPluginStart()
 	
 	//Load common vehicle sounds
 	if (LibraryExists("LoadSoundscript"))
+#if defined _loadsoundscript_included
 		LoadSoundScript("scripts/game_sounds_vehicles.txt");
+#endif
 	
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
