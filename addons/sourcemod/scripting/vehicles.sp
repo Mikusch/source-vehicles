@@ -90,7 +90,7 @@ enum struct Vehicle
 }
 
 ConVar tf_vehicle_lock_speed;
-ConVar tf_vehicle_physics_damage_multiplier;
+ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 
 DynamicHook g_DHookSetPassenger;
@@ -139,7 +139,7 @@ public void OnPluginStart()
 	
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
-	tf_vehicle_physics_damage_multiplier = CreateConVar("tf_vehicle_physics_damage_multiplier", "1.0", "Multiplier of impact-based physics damage against other players", _, true, 0.0);
+	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether the 'MEDIC!' voice menu command will call +use");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -534,7 +534,7 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 		int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
 		if (driver != -1 && victim != driver)
 		{
-			damage *= tf_vehicle_physics_damage_multiplier.FloatValue;
+			damage *= tf_vehicle_physics_damage_modifier.FloatValue;
 			attacker = driver;
 			return Plugin_Changed;
 		}
@@ -604,7 +604,7 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, GetServerVehicle(vehicle), DHookCallback_SetPassengerPre);
 	
 	if (g_DHookIsPassengerVisible != null)
-		g_DHookIsPassengerVisible.HookRaw(Hook_Post, GetServerVehicle(vehicle), DHookCallback_IsPassengerVisible);
+		g_DHookIsPassengerVisible.HookRaw(Hook_Post, GetServerVehicle(vehicle), DHookCallback_IsPassengerVisiblePost);
 	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
@@ -759,16 +759,16 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	return hook;
 }
 
-public MRESReturn DHookCallback_SetupMovePre(DHookParam param)
+public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 {
-	int client = param.Get(1);
+	int client = params.Get(1);
 	
 	int vehicle = GetEntPropEnt(client, Prop_Send, "m_hVehicle");
 	if (vehicle != -1)
 	{
-		Address ucmd = param.Get(2);
-		Address helper = param.Get(3);
-		Address move = param.Get(4);
+		Address ucmd = params.Get(2);
+		Address helper = params.Get(3);
+		Address move = params.Get(4);
 		
 		SDKCall_VehicleSetupMove(vehicle, client, ucmd, helper, move);
 	}
@@ -788,7 +788,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam para
 	}
 }
 
-public MRESReturn DHookCallback_IsPassengerVisible(Address vehicle, DHookReturn ret)
+public MRESReturn DHookCallback_IsPassengerVisiblePost(Address vehicle, DHookReturn ret)
 {
 	ret.Value = true;
 	return MRES_Supercede;

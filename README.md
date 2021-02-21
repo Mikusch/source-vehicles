@@ -78,7 +78,7 @@ The plugin creates the following console variables:
 
 * `tf_vehicle_lock_speed ( def. "10.0" )` - Vehicle must be going slower than this for player to enter or exit, in
   in/sec
-* `tf_vehicle_physics_damage_multiplier ( def. "1.0" )` - Multiplier of impact-based physics damage against other
+* `tf_vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other
   players
 * `tf_vehicle_voicemenu_use ( def. "1" )` - Whether the 'MEDIC!' voice menu command will call +use
 
