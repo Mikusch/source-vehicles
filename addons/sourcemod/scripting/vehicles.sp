@@ -131,6 +131,8 @@ public void OnPluginStart()
 #if defined _loadsoundscript_included
 		LoadSoundScript("scripts/game_sounds_vehicles.txt");
 #endif
+	else
+		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds.");
 	
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
