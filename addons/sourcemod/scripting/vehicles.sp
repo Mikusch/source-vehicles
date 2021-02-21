@@ -254,13 +254,7 @@ public void OnEntityDestroyed(int entity)
 		return;
 	
 	if (IsEntityVehicle(entity))
-	{
-		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
-		if (client != -1)
-		{
-			AcceptEntityInput(client, "ClearParent");
-		}
-	}
+		SDKCall_HandleEntryExitFinish(entity, true, true);
 }
 
 //-----------------------------------------------------------------------------
