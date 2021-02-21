@@ -43,8 +43,8 @@ enum VehicleType
 
 enum struct Vehicle
 {
-	char name[256];							/**< Unique identifier of the vehicle */
-	char displayName[256];					/**< Display name of the vehicle */
+	char id[256];							/**< Unique identifier of the vehicle */
+	char name[256];							/**< Display name of the vehicle */
 	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
 	int skin;								/**< Model skin */
 	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
@@ -52,8 +52,8 @@ enum struct Vehicle
 	
 	void ReadConfig(KeyValues kv)
 	{
+		kv.GetString("id", this.id, 256, this.id);
 		kv.GetString("name", this.name, 256, this.name);
-		kv.GetString("display_name", this.displayName, 256, this.displayName);
 		kv.GetString("model", this.model, PLATFORM_MAX_PATH, this.model);
 		this.skin = kv.GetNum("skin", this.skin);
 		kv.GetString("vehiclescript", this.vehiclescript, PLATFORM_MAX_PATH, this.vehiclescript);
@@ -268,7 +268,7 @@ void CreateVehicle(int client, Vehicle config)
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
 	{
-		DispatchKeyValue(vehicle, "targetname", config.name);
+		DispatchKeyValue(vehicle, "targetname", config.id);
 		DispatchKeyValue(vehicle, "model", config.model);
 		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
@@ -351,9 +351,9 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
-bool GetConfigByName(const char[] name, Vehicle buffer)
+bool GetConfigById(const char[] id, Vehicle buffer)
 {
-	int index = g_AllVehicles.FindString(name);
+	int index = g_AllVehicles.FindString(id);
 	if (index != -1)
 		return g_AllVehicles.GetArray(index, buffer, sizeof(buffer)) > 0;
 	
@@ -453,13 +453,13 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	char name[256];
-	GetCmdArgString(name, sizeof(name));
+	char id[256];
+	GetCmdArgString(id, sizeof(id));
 	
 	Vehicle config;
-	if (!GetConfigByName(name, config))
+	if (!GetConfigById(id, config))
 	{
-		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", name);
+		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", id);
 		return Plugin_Handled;
 	}
 	
@@ -671,7 +671,7 @@ void DisplayVehicleCreateMenu(int client)
 		Vehicle config;
 		if (g_AllVehicles.GetArray(i, config, sizeof(config)) > 0)
 		{
-			menu.AddItem(config.name, config.displayName);
+			menu.AddItem(config.id, config.id);
 		}
 	}
 	
@@ -697,10 +697,10 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 		{
 			char info[32], display[128];
 			Vehicle config;
-			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigByName(info, config))
+			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config))
 			{
 				SetGlobalTransTarget(param1);
-				Format(display, sizeof(display), "%t", config.displayName);
+				Format(display, sizeof(display), "%t", config.name);
 				return RedrawMenuItem(display);
 			}
 		}
