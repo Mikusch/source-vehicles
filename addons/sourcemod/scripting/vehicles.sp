@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  Mikusch
+ * Copyright (C) 2021  Mikusch
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.4.1"
+#define PLUGIN_VERSION	"1.5.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -43,8 +43,8 @@ enum VehicleType
 
 enum struct Vehicle
 {
-	char name[256];							/**< Unique identifier of the vehicle */
-	char displayName[256];					/**< Display name of the vehicle */
+	char id[256];							/**< Unique identifier of the vehicle */
+	char name[256];							/**< Display name of the vehicle */
 	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
 	int skin;								/**< Model skin */
 	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
@@ -52,8 +52,8 @@ enum struct Vehicle
 	
 	void ReadConfig(KeyValues kv)
 	{
+		kv.GetString("id", this.id, 256, this.id);
 		kv.GetString("name", this.name, 256, this.name);
-		kv.GetString("display_name", this.displayName, 256, this.displayName);
 		kv.GetString("model", this.model, PLATFORM_MAX_PATH, this.model);
 		this.skin = kv.GetNum("skin", this.skin);
 		kv.GetString("vehiclescript", this.vehiclescript, PLATFORM_MAX_PATH, this.vehiclescript);
@@ -110,9 +110,9 @@ bool g_ClientInUse[MAXPLAYERS + 1];
 
 public Plugin myinfo = 
 {
-	name = "Team Fortress 2 Vehicles", 
+	name = "Driveable Vehicles for Team Fortress 2", 
 	author = PLUGIN_AUTHOR, 
-	description = "Fully functioning Team Fortress 2 vehicles", 
+	description = "Fully functioning driveable vehicles for Team Fortress 2", 
 	version = PLUGIN_VERSION, 
 	url = PLUGIN_URL
 }
@@ -123,6 +123,9 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
+	if (GetEngineVersion() != Engine_TF2)
+		SetFailState("This plugin is only compatible with Team Fortress 2");
+	
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
 	
@@ -131,11 +134,13 @@ public void OnPluginStart()
 #if defined _loadsoundscript_included
 		LoadSoundScript("scripts/game_sounds_vehicles.txt");
 #endif
+	else
+		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds.");
 	
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_multiplier = CreateConVar("tf_vehicle_physics_damage_multiplier", "1.0", "Multiplier of impact-based physics damage against other players", _, true, 0.0);
-	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use", _, true, 0.0, true, 1.0);
+	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether the 'MEDIC!' voice menu command will call +use");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -254,13 +259,7 @@ public void OnEntityDestroyed(int entity)
 		return;
 	
 	if (IsEntityVehicle(entity))
-	{
-		int client = GetEntPropEnt(entity, Prop_Send, "m_hPlayer");
-		if (client != -1)
-		{
-			AcceptEntityInput(client, "ClearParent");
-		}
-	}
+		SDKCall_HandleEntryExitFinish(entity, true, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -272,7 +271,7 @@ void CreateVehicle(int client, Vehicle config)
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
 	{
-		DispatchKeyValue(vehicle, "targetname", config.name);
+		DispatchKeyValue(vehicle, "targetname", config.id);
 		DispatchKeyValue(vehicle, "model", config.model);
 		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
@@ -283,12 +282,12 @@ void CreateVehicle(int client, Vehicle config)
 		{
 			AcceptEntityInput(vehicle, "HandBrakeOn");
 			
-			MoveEntityToClientEye(vehicle, client, MASK_SOLID | MASK_WATER);
+			TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER);
 		}
 	}
 }
 
-bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
+bool TeleportEntityToClientViewPos(int entity, int client, int mask)
 {
 	float posStart[3], posEnd[3], angles[3], mins[3], maxs[3];
 	
@@ -311,7 +310,7 @@ bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
 	TR_GetEndPosition(posEnd, trace);
 	delete trace;
 	
-	//Don't want entity angle consider up/down eye
+	//We don't want the entity angle to consider the x-axis
 	angles[0] = 0.0;
 	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
 	return true;
@@ -355,9 +354,9 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
-bool GetConfigByName(const char[] name, Vehicle buffer)
+bool GetConfigById(const char[] id, Vehicle buffer)
 {
-	int index = g_AllVehicles.FindString(name);
+	int index = g_AllVehicles.FindString(id);
 	if (index != -1)
 		return g_AllVehicles.GetArray(index, buffer, sizeof(buffer)) > 0;
 	
@@ -457,13 +456,13 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	char name[256];
-	GetCmdArgString(name, sizeof(name));
+	char id[256];
+	GetCmdArgString(id, sizeof(id));
 	
 	Vehicle config;
-	if (!GetConfigByName(name, config))
+	if (!GetConfigById(id, config))
 	{
-		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", name);
+		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", id);
 		return Plugin_Handled;
 	}
 	
@@ -562,8 +561,14 @@ public void PropVehicleDriveable_Think(int vehicle)
 			//Show different key hints based on vehicle type
 			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
 			{
-				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+				}
+				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				}
 			}
 		}
 		
@@ -675,7 +680,7 @@ void DisplayVehicleCreateMenu(int client)
 		Vehicle config;
 		if (g_AllVehicles.GetArray(i, config, sizeof(config)) > 0)
 		{
-			menu.AddItem(config.name, config.displayName);
+			menu.AddItem(config.id, config.id);
 		}
 	}
 	
@@ -701,10 +706,10 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 		{
 			char info[32], display[128];
 			Vehicle config;
-			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigByName(info, config))
+			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config))
 			{
 				SetGlobalTransTarget(param1);
-				Format(display, sizeof(display), "%t", config.displayName);
+				Format(display, sizeof(display), "%t", config.name);
 				return RedrawMenuItem(display);
 			}
 		}
