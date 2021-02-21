@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.4.1"
+#define PLUGIN_VERSION	"1.5.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -110,9 +110,9 @@ bool g_ClientInUse[MAXPLAYERS + 1];
 
 public Plugin myinfo = 
 {
-	name = "Team Fortress 2 Vehicles", 
+	name = "Driveable Vehicles for Team Fortress 2", 
 	author = PLUGIN_AUTHOR, 
-	description = "Fully functioning Team Fortress 2 vehicles", 
+	description = "Fully functioning driveable vehicles for Team Fortress 2", 
 	version = PLUGIN_VERSION, 
 	url = PLUGIN_URL
 }
@@ -123,6 +123,9 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
+	if (GetEngineVersion() != Engine_TF2)
+		SetFailState("This plugin is only compatible with Team Fortress 2");
+	
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
 	
@@ -137,7 +140,7 @@ public void OnPluginStart()
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_multiplier = CreateConVar("tf_vehicle_physics_damage_multiplier", "1.0", "Multiplier of impact-based physics damage against other players", _, true, 0.0);
-	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use", _, true, 0.0, true, 1.0);
+	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -279,12 +282,12 @@ void CreateVehicle(int client, Vehicle config)
 		{
 			AcceptEntityInput(vehicle, "HandBrakeOn");
 			
-			MoveEntityToClientEye(vehicle, client, MASK_SOLID | MASK_WATER);
+			TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER);
 		}
 	}
 }
 
-bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
+bool TeleportEntityToClientViewPos(int entity, int client, int mask)
 {
 	float posStart[3], posEnd[3], angles[3], mins[3], maxs[3];
 	
@@ -307,7 +310,7 @@ bool MoveEntityToClientEye(int entity, int client, int mask = MASK_PLAYERSOLID)
 	TR_GetEndPosition(posEnd, trace);
 	delete trace;
 	
-	//Don't want entity angle consider up/down eye
+	//We don't want the entity angle consider x-axis
 	angles[0] = 0.0;
 	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
 	return true;
