@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  Mikusch
+ * Copyright (C) 2021  Mikusch
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ public void OnPluginStart()
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_multiplier = CreateConVar("tf_vehicle_physics_damage_multiplier", "1.0", "Multiplier of impact-based physics damage against other players", _, true, 0.0);
-	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether \"MEDIC!\" voice menu commands should call +use");
+	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether the 'MEDIC!' voice menu command will call +use");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
