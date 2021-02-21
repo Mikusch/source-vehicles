@@ -310,7 +310,7 @@ bool TeleportEntityToClientViewPos(int entity, int client, int mask)
 	TR_GetEndPosition(posEnd, trace);
 	delete trace;
 	
-	//We don't want the entity angle consider x-axis
+	//We don't want the entity angle to consider the x-axis
 	angles[0] = 0.0;
 	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
 	return true;
@@ -561,8 +561,14 @@ public void PropVehicleDriveable_Think(int vehicle)
 			//Show different key hints based on vehicle type
 			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
 			{
-				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST: ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+				}
+				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				}
 			}
 		}
 		
