@@ -28,6 +28,11 @@
 				"linux"		"10"
 				"windows"	"10"
 			}
+			"CBaseServerVehicle::GetExitAnimToUse"
+			{
+				"linux"		"21"
+				"windows"	"21"
+			}
 			"CBaseServerVehicle::HandleEntryExitFinish"
 			{
 				"linux"		"22"
@@ -87,6 +92,24 @@
 					"pPassenger"
 					{
 						"type"	"cbaseentity"
+					}
+				}
+			}
+			"CBaseServerVehicle::GetExitAnimToUse"
+			{
+				"offset"	"CBaseServerVehicle::GetExitAnimToUse"
+				"hooktype"	"raw"
+				"return"	"int"
+				"this"		"address"
+				"arguments"
+				{
+					"vecEyeExitEndpoint"
+					{
+						"type"	"vectorptr"
+					}
+					"bAllPointsBlocked"
+					{
+						"type"	"bool"
 					}
 				}
 			}

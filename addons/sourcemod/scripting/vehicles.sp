@@ -33,6 +33,8 @@
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 #define CONFIG_FILEPATH		"configs/vehicles/vehicles.cfg"
 
+#define ACTIVITY_NOT_AVAILABLE	-1
+
 enum VehicleType
 {
 	VEHICLE_TYPE_CAR_WHEELS = (1 << 0), 
@@ -94,6 +96,7 @@ ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 
 DynamicHook g_DHookSetPassenger;
+DynamicHook g_DHookGetExitAnimToUse;
 DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
@@ -193,6 +196,7 @@ public void OnPluginStart()
 	
 	CreateDynamicDetour(gamedata, "CTFPlayerMove::SetupMove", DHookCallback_SetupMovePre);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
+	g_DHookGetExitAnimToUse = CreateDynamicHook(gamedata, "CBaseServerVehicle::GetExitAnimToUse");
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
@@ -599,13 +603,18 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 
 public void PropVehicleDriveable_SpawnPost(int vehicle)
 {
+	Address serverVehicle = GetServerVehicle(vehicle);
+	
 	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
 	if (g_DHookSetPassenger != null)
-		g_DHookSetPassenger.HookRaw(Hook_Pre, GetServerVehicle(vehicle), DHookCallback_SetPassengerPre);
+		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
+	
+	if (g_DHookGetExitAnimToUse != null)
+		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
 	
 	if (g_DHookIsPassengerVisible != null)
-		g_DHookIsPassengerVisible.HookRaw(Hook_Post, GetServerVehicle(vehicle), DHookCallback_IsPassengerVisiblePost);
-	
+		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
+		
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
@@ -786,6 +795,12 @@ public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam para
 		if (client != -1)
 			SetEntProp(client, Prop_Data, "m_bDrawViewmodel", true);
 	}
+}
+
+public MRESReturn DHookCallback_GetExitAnimToUsePost(Address vehicle, DHookReturn ret)
+{
+	ret.Value = ACTIVITY_NOT_AVAILABLE;
+	return MRES_Override;
 }
 
 public MRESReturn DHookCallback_IsPassengerVisiblePost(Address vehicle, DHookReturn ret)
