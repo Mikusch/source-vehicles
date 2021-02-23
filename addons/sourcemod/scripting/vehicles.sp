@@ -635,6 +635,7 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 
 public void PropVehicleDriveable_SpawnPost(int vehicle)
 {
+	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
 	DHookVehicle(vehicle);
 	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
@@ -794,7 +795,6 @@ void DHookVehicle(int vehicle)
 {
 	Address serverVehicle = GetServerVehicle(vehicle);
 	
-	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
 	if (g_DHookSetPassenger != null)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
 	
