@@ -155,7 +155,7 @@ public void OnPluginStart()
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
-	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental, use at your own risk!)");
+	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental!)");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);

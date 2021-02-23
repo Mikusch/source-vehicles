@@ -12,7 +12,7 @@ This plugin bundles the required entity fixes and a few configurable nice-to-hav
 
 * Fully functioning driveable vehicles based on `prop_vehicle_driveable`
 * Vehicle sounds
-* Entry and exit animations
+* Entry and exit animations (experimental)
 * Physics collisions and damage against other players
 * Highly customizable through plugin configuration and ConVars
 
@@ -76,12 +76,10 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 
 The plugin creates the following console variables:
 
-* `tf_vehicle_lock_speed ( def. "10.0" )` - Vehicle must be going slower than this for player to enter or exit, in
-  in/sec
-* `tf_vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other
-  players
+* `tf_vehicle_lock_speed ( def. "10.0" )` - Vehicle must be going slower than this for player to enter or exit, in in/sec
+* `tf_vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other players
 * `tf_vehicle_voicemenu_use ( def. "1" )` - Allow the 'MEDIC!' voice menu command to call +use
-* `tf_vehicle_enable_entry_exit_anims ( def. "0" )` - Enable entry and exit animations (experimental, use at your own risk!)
+* `tf_vehicle_enable_entry_exit_anims ( def. "0" )` - Enable entry and exit animations (experimental!)
 
 ## Physics Damage
 
@@ -89,3 +87,15 @@ This plugin will automatically enable physics collisions and damage to allow veh
 
 If you intend to use these vehicles in a friendly environment without any combat aspects, set `sv_turbophysics` to `1`.
 It will allow vehicles to pass through other players.
+
+## Entry and Exit Animations
+
+Most vehicles have entry and exit animations that make the player "transition" from one point to another, which are
+fully supported by the plugin.
+
+However, since Valve probably never intended `prop_vehicle_driveable` to be used outside of Half-Life 2, there is code
+that does not function properly in a multiplayer environment and can even cause client crashes.
+
+Because of this, entry and exit animations on all vehicles are disabled by default and have to be manually enabled by
+setting `tf_vehicle_enable_entry_exit_anims` to `1`. If you intend to use this plugin on a public server, it is **highly
+recommended** to keep this disabled.
