@@ -280,7 +280,7 @@ public void OnEntityDestroyed(int entity)
 		return;
 	
 	if (IsEntityVehicle(entity))
-		SDKCall_HandleEntryExitFinish(entity, true, true);
+		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -608,7 +608,7 @@ public void PropVehicleDriveable_Think(int vehicle)
 			}
 		}
 		
-		SDKCall_HandleEntryExitFinish(vehicle, exitAnimOn, true);
+		SDKCall_HandleEntryExitFinish(GetServerVehicle(vehicle), exitAnimOn, true);
 	}
 }
 
@@ -819,7 +819,7 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 		Address helper = params.Get(3);
 		Address move = params.Get(4);
 		
-		SDKCall_VehicleSetupMove(vehicle, client, ucmd, helper, move);
+		SDKCall_VehicleSetupMove(GetServerVehicle(vehicle), client, ucmd, helper, move);
 	}
 }
 
@@ -961,14 +961,10 @@ Handle PrepSDKCall_GetInVehicle(GameData gamedata)
 	return call;
 }
 
-void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address helper, Address move)
+void SDKCall_VehicleSetupMove(Address serverVehicle, int client, Address ucmd, Address helper, Address move)
 {
 	if (g_SDKCallVehicleSetupMove != null)
-	{
-		Address serverVehicle = GetServerVehicle(vehicle);
-		if (serverVehicle != Address_Null)
-			SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
-	}
+		SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
 }
 
 int SDKCall_GetVehicleEnt(Address serverVehicle)
@@ -979,14 +975,10 @@ int SDKCall_GetVehicleEnt(Address serverVehicle)
 	return -1;
 }
 
-void SDKCall_HandleEntryExitFinish(int vehicle, bool exitAnimOn, bool resetAnim)
+void SDKCall_HandleEntryExitFinish(Address serverVehicle, bool exitAnimOn, bool resetAnim)
 {
 	if (g_SDKCallHandleEntryExitFinish != null)
-	{
-		Address serverVehicle = GetServerVehicle(vehicle);
-		if (serverVehicle != Address_Null)
-			SDKCall(g_SDKCallHandleEntryExitFinish, serverVehicle, exitAnimOn, resetAnim);
-	}
+		SDKCall(g_SDKCallHandleEntryExitFinish, serverVehicle, exitAnimOn, resetAnim);
 }
 
 int SDKCall_GetDriver(Address serverVehicle)
