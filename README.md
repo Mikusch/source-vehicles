@@ -80,7 +80,8 @@ The plugin creates the following console variables:
   in/sec
 * `tf_vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other
   players
-* `tf_vehicle_voicemenu_use ( def. "1" )` - Whether the 'MEDIC!' voice menu command will call +use
+* `tf_vehicle_voicemenu_use ( def. "1" )` - Allow the 'MEDIC!' voice menu command to call +use
+* `tf_vehicle_enable_entry_exit_anims ( def. "0" )` - Enable entry and exit animations (experimental, use at your own risk!)
 
 ## Physics Damage
 

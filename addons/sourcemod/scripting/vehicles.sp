@@ -101,6 +101,7 @@ enum struct Vehicle
 ConVar tf_vehicle_lock_speed;
 ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
+ConVar tf_vehicle_enable_entry_exit_anims;
 
 DynamicHook g_DHookSetPassenger;
 DynamicHook g_DHookHandlePassengerEntry;
@@ -153,7 +154,8 @@ public void OnPluginStart()
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
-	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Whether the 'MEDIC!' voice menu command will call +use");
+	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
+	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental, use at your own risk!)");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -238,6 +240,8 @@ public void OnMapStart()
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
+		
+		DHookVehicle(vehicle);
 	}
 }
 
@@ -618,20 +622,7 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 
 public void PropVehicleDriveable_SpawnPost(int vehicle)
 {
-	Address serverVehicle = GetServerVehicle(vehicle);
-	
-	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
-	if (g_DHookSetPassenger != null)
-		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
-	
-	if (g_DHookHandlePassengerEntry != null)
-		g_DHookHandlePassengerEntry.HookRaw(Hook_Pre, serverVehicle, DHookCallback_HandlePassengerEntryPre);
-	
-	if (g_DHookGetExitAnimToUse != null)
-		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
-	
-	if (g_DHookIsPassengerVisible != null)
-		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
+	DHookVehicle(vehicle);
 	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
@@ -786,6 +777,24 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	return hook;
 }
 
+void DHookVehicle(int vehicle)
+{
+	Address serverVehicle = GetServerVehicle(vehicle);
+	
+	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
+	if (g_DHookSetPassenger != null)
+		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
+	
+	if (g_DHookHandlePassengerEntry != null)
+		g_DHookHandlePassengerEntry.HookRaw(Hook_Pre, serverVehicle, DHookCallback_HandlePassengerEntryPre);
+	
+	if (g_DHookGetExitAnimToUse != null)
+		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
+	
+	if (g_DHookIsPassengerVisible != null)
+		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
+}
+
 public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 {
 	int client = params.Get(1);
@@ -817,24 +826,34 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 
 public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, DHookParam params)
 {
-	/*
-	 * Vehicle entry animations do not work properly in a multiplayer environment
-	 * and the logic of CBaseServerVehicle::HandlePassengerEntry doesn't allow us to easily disable them.
-	 *
-	 * Superceding the original function and running our own logic is the most sane thing to do.
-	 */
+	if (!tf_vehicle_enable_entry_exit_anims.BoolValue)
+	{
+		/*
+		 * Vehicle entry animations do not work properly in a multiplayer environment
+		 * and the logic of CBaseServerVehicle::HandlePassengerEntry doesn't allow us to easily disable them.
+		 *
+		 * Superceding the original function and running our own logic is the most sane thing to do.
+		 */
+		
+		int client = params.Get(1);
+		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+		SetEntProp(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_bEnterAnimOn", true);
+		
+		return MRES_Supercede;
+	}
 	
-	int client = params.Get(1);
-	SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
-	SetEntProp(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_bEnterAnimOn", true);
-	
-	return MRES_Supercede;
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHookReturn ret)
 {
-	ret.Value = ACTIVITY_NOT_AVAILABLE;
-	return MRES_Override;
+	if (!tf_vehicle_enable_entry_exit_anims.BoolValue)
+	{
+		ret.Value = ACTIVITY_NOT_AVAILABLE;
+		return MRES_Override;
+	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
