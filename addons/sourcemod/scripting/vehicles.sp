@@ -541,10 +541,20 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 
 public void Client_PostThink(int client)
 {
-	//For some reason IN_USE never gets assigned to m_afButtonPressed inside vehicles, preventing exiting, so let's add it ourselves
-	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") != -1 && GetClientButtons(client) & IN_USE)
+	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") != -1)
 	{
-		SetEntProp(client, Prop_Data, "m_afButtonPressed", GetEntProp(client, Prop_Data, "m_afButtonPressed") | IN_USE);
+		static bool clientCanExit[MAXPLAYERS + 1];
+		
+		//Player needs to release IN_USE before they can exit the vehicle
+		if (GetEntProp(client, Prop_Data, "m_afButtonReleased") & IN_USE)
+			clientCanExit[client] = true;
+		
+		//For some reason IN_USE never gets assigned to m_afButtonPressed inside vehicles, preventing exiting, so let's add it ourselves
+		if (GetClientButtons(client) & IN_USE && clientCanExit[client])
+		{
+			SetEntProp(client, Prop_Data, "m_afButtonPressed", GetEntProp(client, Prop_Data, "m_afButtonPressed") | IN_USE);
+			clientCanExit[client] = false;
+		}
 	}
 }
 
@@ -581,16 +591,19 @@ public void PropVehicleDriveable_Think(int vehicle)
 		{
 			AcceptEntityInput(vehicle, "TurnOn");
 			
-			//Show different key hints based on vehicle type
-			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
+			if (client != -1)
 			{
-				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
+				//Show different key hints based on vehicle type
+				switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
 				{
-					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-				}
-				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
-				{
-					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+					case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
+					{
+						ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+					}
+					case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
+					{
+						ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+					}
 				}
 			}
 		}
