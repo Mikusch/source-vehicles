@@ -828,18 +828,17 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 {
 	if (!tf_vehicle_enable_entry_exit_anims.BoolValue)
 	{
-		/*
-		 * Vehicle entry animations do not work properly in a multiplayer environment
-		 * and the logic of CBaseServerVehicle::HandlePassengerEntry doesn't allow us to easily disable them.
-		 *
-		 * Superceding the original function and running our own logic is the most sane thing to do.
-		 */
-		
 		int client = params.Get(1);
-		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
-		SetEntProp(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_bEnterAnimOn", true);
+		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
 		
-		return MRES_Supercede;
+		//This saves us an SDKCall to CPropVehicleDriveable::CanEnterVehicle
+		if (GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer") == client)
+			return MRES_Supercede;
+		
+		//I don't know why we need to set this but entering vehicles doesn't work if we don't (client-side code?)
+		SetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn", true);
+		
+		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
 	}
 	
 	return MRES_Ignored;
