@@ -35,6 +35,13 @@
 
 #define ACTIVITY_NOT_AVAILABLE	-1
 
+enum PassengerRole
+{
+	VEHICLE_ROLE_NONE = -1,
+	VEHICLE_ROLE_DRIVER = 0,	// Only one driver
+	LAST_SHARED_VEHICLE_ROLE,
+}
+
 enum VehicleType
 {
 	VEHICLE_TYPE_CAR_WHEELS = (1 << 0), 
@@ -96,13 +103,16 @@ ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 
 DynamicHook g_DHookSetPassenger;
+DynamicHook g_DHookHandlePassengerEntry;
 DynamicHook g_DHookGetExitAnimToUse;
 DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
+Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallGetDriver;
 Handle g_SDKCallStudioFrameAdvance;
+Handle g_SDKCallGetInVehicle;
 
 ArrayList g_AllVehicles;
 
@@ -196,13 +206,16 @@ public void OnPluginStart()
 	
 	CreateDynamicDetour(gamedata, "CTFPlayerMove::SetupMove", DHookCallback_SetupMovePre);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
+	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
 	g_DHookGetExitAnimToUse = CreateDynamicHook(gamedata, "CBaseServerVehicle::GetExitAnimToUse");
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
+	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallGetDriver = PrepSDKCall_GetDriver(gamedata);
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
+	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
 	
 	delete gamedata;
 }
@@ -549,14 +562,16 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 
 public void PropVehicleDriveable_Think(int vehicle)
 {
-	SDKCall_StudioFrameAdvance(vehicle);
-	
 	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	int sequence = GetEntProp(vehicle, Prop_Data, "m_nSequence");
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
 	
-	if (sequenceFinished && (enterAnimOn || exitAnimOn))
+	if (sequence != 0)
+		SDKCall_StudioFrameAdvance(vehicle);
+	
+	if ((sequence == 0 || sequenceFinished) && (enterAnimOn || exitAnimOn))
 	{
 		if (enterAnimOn)
 		{
@@ -609,12 +624,15 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	if (g_DHookSetPassenger != null)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
 	
+	if (g_DHookHandlePassengerEntry != null)
+		g_DHookHandlePassengerEntry.HookRaw(Hook_Pre, serverVehicle, DHookCallback_HandlePassengerEntryPre);
+	
 	if (g_DHookGetExitAnimToUse != null)
 		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
 	
 	if (g_DHookIsPassengerVisible != null)
 		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
-		
+	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
@@ -783,7 +801,7 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 	}
 }
 
-public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam params)
+public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookParam params)
 {
 	if (!params.IsNull(2))
 	{
@@ -791,19 +809,35 @@ public MRESReturn DHookCallback_SetPassengerPre(Address vehicle, DHookParam para
 	}
 	else
 	{
-		int client = SDKCall_GetDriver(vehicle);
+		int client = SDKCall_GetDriver(serverVehicle);
 		if (client != -1)
 			SetEntProp(client, Prop_Data, "m_bDrawViewmodel", true);
 	}
 }
 
-public MRESReturn DHookCallback_GetExitAnimToUsePost(Address vehicle, DHookReturn ret)
+public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, DHookParam params)
+{
+	/*
+	 * Vehicle entry animations do not work properly in a multiplayer environment
+	 * and the logic of CBaseServerVehicle::HandlePassengerEntry doesn't allow us to easily disable them.
+	 *
+	 * Superceding the original function and running our own logic is the most sane thing to do.
+	 */
+	
+	int client = params.Get(1);
+	SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+	SetEntProp(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_bEnterAnimOn", true);
+	
+	return MRES_Supercede;
+}
+
+public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHookReturn ret)
 {
 	ret.Value = ACTIVITY_NOT_AVAILABLE;
 	return MRES_Override;
 }
 
-public MRESReturn DHookCallback_IsPassengerVisiblePost(Address vehicle, DHookReturn ret)
+public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
 {
 	ret.Value = true;
 	return MRES_Supercede;
@@ -825,6 +859,19 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	Handle call = EndPrepSDKCall();
 	if (call == null)
 		LogMessage("Failed to create SDKCall: CBaseServerVehicle::SetupMove");
+	
+	return call;
+}
+
+Handle PrepSDKCall_GetVehicleEnt(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::GetVehicleEnt");
+	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDKCall: CBaseServerVehicle::GetVehicleEnt");
 	
 	return call;
 }
@@ -868,6 +915,21 @@ Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 	return call;
 }
 
+Handle PrepSDKCall_GetInVehicle(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBasePlayer::GetInVehicle");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogError("Failed to create SDKCall: CBasePlayer::GetInVehicle");
+	
+	return call;
+}
+
 void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address helper, Address move)
 {
 	if (g_SDKCallVehicleSetupMove != null)
@@ -876,6 +938,14 @@ void SDKCall_VehicleSetupMove(int vehicle, int client, Address ucmd, Address hel
 		if (serverVehicle != Address_Null)
 			SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
 	}
+}
+
+int SDKCall_GetVehicleEnt(Address serverVehicle)
+{
+	if (g_SDKCallGetVehicleEnt != null)
+		return SDKCall(g_SDKCallGetVehicleEnt, serverVehicle);
+	
+	return -1;
 }
 
 void SDKCall_HandleEntryExitFinish(int vehicle, bool exitAnimOn, bool resetAnim)
@@ -900,4 +970,12 @@ void SDKCall_StudioFrameAdvance(int entity)
 {
 	if (g_SDKCallStudioFrameAdvance != null)
 		SDKCall(g_SDKCallStudioFrameAdvance, entity);
+}
+
+bool SDKCall_GetInVehicle(int client, Address serverVehicle, PassengerRole role)
+{
+	if (g_SDKCallGetInVehicle != null)
+		return SDKCall(g_SDKCallGetInVehicle, client, serverVehicle, role);
+	
+	return false;
 }

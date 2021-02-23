@@ -6,7 +6,6 @@
 		{
 			"CTFPlayerMove::SetupMove"
 			{
-				"library"	"server"
 				"linux"		"@_ZN13CTFPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
 				"windows"	"\x55\x8B\xEC\x83\xEC\x10\x56\x8B\x75\x08\x89\x4D\xFC"
 			}
@@ -18,6 +17,11 @@
 				"linux"		"4"
 				"windows"	"4"
 			}
+			"CBaseServerVehicle::GetVehicleEnt"
+			{
+				"linux"		"8"
+				"windows"	"8"
+			}
 			"CBaseServerVehicle::SetPassenger"
 			{
 				"linux"		"9"
@@ -27,6 +31,11 @@
 			{
 				"linux"		"10"
 				"windows"	"10"
+			}
+			"CBaseServerVehicle::HandlePassengerEntry"
+			{
+				"linux"		"17"
+				"windows"	"17"
 			}
 			"CBaseServerVehicle::GetExitAnimToUse"
 			{
@@ -47,6 +56,11 @@
 			{
 				"linux"		"194"
 				"windows"	"193"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"397"
+				"windows"	"396"
 			}
 		}
 		"Functions"
@@ -92,6 +106,24 @@
 					"pPassenger"
 					{
 						"type"	"cbaseentity"
+					}
+				}
+			}
+			"CBaseServerVehicle::HandlePassengerEntry"
+			{
+				"offset"	"CBaseServerVehicle::HandlePassengerEntry"
+				"hooktype"	"raw"
+				"return"	"void"
+				"this"		"address"
+				"arguments"
+				{
+					"pPassenger"
+					{
+						"type"	"cbaseentity"
+					}
+					"bAllowEntryOutsideZone"
+					{
+						"type"	"bool"
 					}
 				}
 			}
