@@ -375,6 +375,17 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
+bool CanEnterVehicle(int client, int vehicle)
+{
+	//Prevent entering if the vehicle's being driven by another player
+	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	if (driver != -1 && driver != client)
+		return false;
+	
+	//Prevent entering if the vehicle's locked, or if it's moving too fast.
+	return !GetEntProp(vehicle, Prop_Data, "m_bLocked") && GetEntProp(vehicle, Prop_Data, "m_nSpeed") <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit");
+}
+
 bool GetConfigById(const char[] id, Vehicle buffer)
 {
 	int index = g_AllVehicles.FindString(id);
@@ -855,14 +866,21 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
 		
+		//Exiting our vehicle calls HandlePassengerEntry for some reason, prevent our logic from running
+		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (driver != -1 && driver == client)
+			return MRES_Supercede;
+		
 		//This saves us an SDKCall to CPropVehicleDriveable::CanEnterVehicle
-		if (GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer") == client)
+		if (!CanEnterVehicle(client, vehicle))
 			return MRES_Supercede;
 		
 		//I don't know why we need to set this but entering vehicles doesn't work if we don't (client-side code?)
 		SetEntProp(vehicle, Prop_Send, "m_bEnterAnimOn", true);
 		
 		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+		
+		return MRES_Supercede;
 	}
 	
 	return MRES_Ignored;
