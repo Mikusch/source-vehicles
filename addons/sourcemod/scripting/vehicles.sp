@@ -432,6 +432,34 @@ void RestoreConVar(const char[] name, const char[] oldValue)
 }
 
 //-----------------------------------------------------------------------------
+// Timers
+//-----------------------------------------------------------------------------
+
+public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
+{
+	int vehicle = EntRefToEntIndex(vehicleRef);
+	if (vehicle != -1)
+	{
+		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+		if (client != -1)
+		{
+			//Show different key hints based on vehicle type
+			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
+			{
+				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
+				}
+				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
+				{
+					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
+				}
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
 // Commands
 //-----------------------------------------------------------------------------
 
@@ -562,7 +590,7 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 {
 	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
 	{
-		int driver = GetEntPropEnt(inflictor, Prop_Send, "m_hPlayer");
+		int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
 		if (driver != -1 && victim != driver)
 		{
 			damage *= tf_vehicle_physics_damage_modifier.FloatValue;
@@ -576,7 +604,6 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 
 public void PropVehicleDriveable_Think(int vehicle)
 {
-	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	int sequence = GetEntProp(vehicle, Prop_Data, "m_nSequence");
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
@@ -591,21 +618,7 @@ public void PropVehicleDriveable_Think(int vehicle)
 		{
 			AcceptEntityInput(vehicle, "TurnOn");
 			
-			if (client != -1)
-			{
-				//Show different key hints based on vehicle type
-				switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
-				{
-					case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
-					{
-						ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-					}
-					case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
-					{
-						ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
-					}
-				}
-			}
+			CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
 		}
 		
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(vehicle), exitAnimOn, true);
@@ -810,7 +823,7 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 {
 	int client = params.Get(1);
 	
-	int vehicle = GetEntPropEnt(client, Prop_Send, "m_hVehicle");
+	int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
 	if (vehicle != -1)
 	{
 		Address ucmd = params.Get(2);
@@ -825,13 +838,13 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 {
 	if (!params.IsNull(2))
 	{
-		SetEntProp(params.Get(2), Prop_Data, "m_bDrawViewmodel", false);
+		SetEntProp(params.Get(2), Prop_Send, "m_bDrawViewmodel", false);
 	}
 	else
 	{
 		int client = SDKCall_GetDriver(serverVehicle);
 		if (client != -1)
-			SetEntProp(client, Prop_Data, "m_bDrawViewmodel", true);
+			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 	}
 }
 
@@ -847,7 +860,7 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 			return MRES_Supercede;
 		
 		//I don't know why we need to set this but entering vehicles doesn't work if we don't (client-side code?)
-		SetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn", true);
+		SetEntProp(vehicle, Prop_Send, "m_bEnterAnimOn", true);
 		
 		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
 	}
