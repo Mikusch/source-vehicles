@@ -241,7 +241,7 @@ public void OnMapStart()
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
 		
-		DHookVehicle(vehicle);
+		DHookVehicle(GetServerVehicle(vehicle));
 	}
 }
 
@@ -635,8 +635,8 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 
 public void PropVehicleDriveable_SpawnPost(int vehicle)
 {
-	//m_pServerVehicle is initialized in CPropVehicleDriveable::Spawn
-	DHookVehicle(vehicle);
+	//m_pServerVehicle is initialized in Spawn so we hook it in SpawnPost
+	DHookVehicle(GetServerVehicle(vehicle));
 	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
@@ -791,10 +791,8 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	return hook;
 }
 
-void DHookVehicle(int vehicle)
+void DHookVehicle(Address serverVehicle)
 {
-	Address serverVehicle = GetServerVehicle(vehicle);
-	
 	if (g_DHookSetPassenger != null)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
 	
