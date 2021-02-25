@@ -242,6 +242,7 @@ public void OnMapStart()
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
+		SDKHook(vehicle, SDKHook_Use, PropVehicleDriveable_Use);
 		
 		DHookVehicle(GetServerVehicle(vehicle));
 	}
@@ -271,6 +272,7 @@ public void OnEntityCreated(int entity)
 	if (IsEntityVehicle(entity))
 	{
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
+		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
 		SDKHook(entity, SDKHook_Spawn, PropVehicleDriveable_Spawn);
 		SDKHook(entity, SDKHook_SpawnPost, PropVehicleDriveable_SpawnPost);
 	}
@@ -669,6 +671,16 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
 }
 
+public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
+{
+	//Prevent call to HandlePassengerEntry for the driving player
+	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 //-----------------------------------------------------------------------------
 // Menus
 //-----------------------------------------------------------------------------
@@ -869,11 +881,6 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 	{
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
-		
-		//Exiting our vehicle calls HandlePassengerEntry for some reason, prevent our logic from running
-		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-		if (driver != -1 && driver == client)
-			return MRES_Supercede;
 		
 		//This saves us an SDKCall to CPropVehicleDriveable::CanEnterVehicle
 		if (!CanEnterVehicle(client, vehicle))
