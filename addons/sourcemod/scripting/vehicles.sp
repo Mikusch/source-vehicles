@@ -26,12 +26,14 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.6.0"
+#define PLUGIN_VERSION	"1.6.1"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 #define CONFIG_FILEPATH		"configs/vehicles/vehicles.cfg"
+
+#define SF_PROP_VEHICLE_SKIPENTERANIM	0x00000002
 
 #define ACTIVITY_NOT_AVAILABLE	-1
 
@@ -109,6 +111,7 @@ DynamicHook g_DHookGetExitAnimToUse;
 DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
+Handle g_SDKCallCanEnterVehicle;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallGetDriver;
@@ -210,6 +213,7 @@ public void OnPluginStart()
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
+	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallGetDriver = PrepSDKCall_GetDriver(gamedata);
@@ -240,6 +244,7 @@ public void OnMapStart()
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
+		SDKHook(vehicle, SDKHook_Use, PropVehicleDriveable_Use);
 		
 		DHookVehicle(GetServerVehicle(vehicle));
 	}
@@ -247,7 +252,6 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_PostThink, Client_PostThink);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
 }
@@ -269,6 +273,7 @@ public void OnEntityCreated(int entity)
 	if (IsEntityVehicle(entity))
 	{
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
+		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
 		SDKHook(entity, SDKHook_Spawn, PropVehicleDriveable_Spawn);
 		SDKHook(entity, SDKHook_SpawnPost, PropVehicleDriveable_SpawnPost);
 	}
@@ -578,25 +583,6 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 // SDKHooks
 //-----------------------------------------------------------------------------
 
-public void Client_PostThink(int client)
-{
-	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") != -1)
-	{
-		static bool clientCanExit[MAXPLAYERS + 1];
-		
-		//Player needs to release IN_USE before they can exit the vehicle
-		if (GetEntProp(client, Prop_Data, "m_afButtonReleased") & IN_USE)
-			clientCanExit[client] = true;
-		
-		//For some reason IN_USE never gets assigned to m_afButtonPressed inside vehicles, preventing exiting, so let's add it ourselves
-		if (GetClientButtons(client) & IN_USE && clientCanExit[client])
-		{
-			SetEntProp(client, Prop_Data, "m_afButtonPressed", GetEntProp(client, Prop_Data, "m_afButtonPressed") | IN_USE);
-			clientCanExit[client] = false;
-		}
-	}
-}
-
 public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
 	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
@@ -619,15 +605,17 @@ public void PropVehicleDriveable_Think(int vehicle)
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
+	bool skipEnterAnim = GetEntProp(vehicle, Prop_Data, "m_spawnflags") & SF_PROP_VEHICLE_SKIPENTERANIM != 0;
 	
 	if (sequence != 0)
 		SDKCall_StudioFrameAdvance(vehicle);
 	
-	if ((sequence == 0 || sequenceFinished) && (enterAnimOn || exitAnimOn))
+	if ((sequence == 0 || sequenceFinished) && (skipEnterAnim || (enterAnimOn || exitAnimOn)))
 	{
-		if (enterAnimOn)
+		if (skipEnterAnim || enterAnimOn)
 		{
 			AcceptEntityInput(vehicle, "TurnOn");
+			SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") & ~SF_PROP_VEHICLE_SKIPENTERANIM);
 			
 			CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
 		}
@@ -663,6 +651,16 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	DHookVehicle(GetServerVehicle(vehicle));
 	
 	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
+}
+
+public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
+{
+	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
+	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
@@ -866,19 +864,19 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
 		
-		//Exiting our vehicle calls HandlePassengerEntry for some reason, prevent our logic from running
-		int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-		if (driver != -1 && driver == client)
-			return MRES_Supercede;
-		
-		//This saves us an SDKCall to CPropVehicleDriveable::CanEnterVehicle
-		if (!CanEnterVehicle(client, vehicle))
-			return MRES_Supercede;
-		
-		//I don't know why we need to set this but entering vehicles doesn't work if we don't (client-side code?)
-		SetEntProp(vehicle, Prop_Send, "m_bEnterAnimOn", true);
-		
-		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+		if (CanEnterVehicle(client, vehicle))	//CPropVehicleDriveable::CanEnterVehicle
+		{
+			if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
+			{
+				/*
+				 * This is not really a spawnflag but it beats having to store this in an array somewhere
+				 * We can NOT just set m_bEnterAnimOn to true as it will lead to the execution of unwanted client-side code
+				 */
+				SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") | SF_PROP_VEHICLE_SKIPENTERANIM);
+				
+				SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+			}
+		}
 		
 		return MRES_Supercede;
 	}
@@ -919,6 +917,21 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	Handle call = EndPrepSDKCall();
 	if (call == null)
 		LogMessage("Failed to create SDKCall: CBaseServerVehicle::SetupMove");
+	
+	return call;
+}
+
+Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBasePlayer::CanEnterVehicle");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDKCall: CBasePlayer::CanEnterVehicle");
 	
 	return call;
 }
@@ -994,6 +1007,14 @@ void SDKCall_VehicleSetupMove(Address serverVehicle, int client, Address ucmd, A
 {
 	if (g_SDKCallVehicleSetupMove != null)
 		SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
+}
+
+bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole role)
+{
+	if (g_SDKCallCanEnterVehicle != null)
+		return SDKCall(g_SDKCallCanEnterVehicle, client, serverVehicle, role);
+	
+	return false;
 }
 
 int SDKCall_GetVehicleEnt(Address serverVehicle)
