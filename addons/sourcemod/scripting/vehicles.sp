@@ -111,6 +111,7 @@ DynamicHook g_DHookGetExitAnimToUse;
 DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
+Handle g_SDKCallCanEnterVehicle;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallGetDriver;
@@ -212,6 +213,7 @@ public void OnPluginStart()
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
+	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallGetDriver = PrepSDKCall_GetDriver(gamedata);
@@ -653,7 +655,7 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 
 public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
 {
-	//Prevent call to HandlePassengerEntry for the driving player
+	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
 	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
 		return Plugin_Handled;
@@ -862,15 +864,19 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
 		
-		//This saves us an SDKCall to CPropVehicleDriveable::CanEnterVehicle
-		if (!CanEnterVehicle(client, vehicle))
-			return MRES_Supercede;
-		
-		//This is not really a "spawn" flag but it beats having to store this in an array somewhere
-		//We can NOT just set m_bEnterAnimOn as it will lead to the execution of unwanted client-side code
-		SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") | SF_PROP_VEHICLE_SKIPENTERANIM);
-		
-		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+		if (CanEnterVehicle(client, vehicle))	//CPropVehicleDriveable::CanEnterVehicle
+		{
+			if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
+			{
+				/*
+				 * This is not really a spawnflag but it beats having to store this in an array somewhere
+				 * We can NOT just set m_bEnterAnimOn to true as it will lead to the execution of unwanted client-side code
+				 */
+				SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") | SF_PROP_VEHICLE_SKIPENTERANIM);
+				
+				SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+			}
+		}
 		
 		return MRES_Supercede;
 	}
@@ -911,6 +917,21 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	Handle call = EndPrepSDKCall();
 	if (call == null)
 		LogMessage("Failed to create SDKCall: CBaseServerVehicle::SetupMove");
+	
+	return call;
+}
+
+Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBasePlayer::CanEnterVehicle");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDKCall: CBasePlayer::CanEnterVehicle");
 	
 	return call;
 }
@@ -986,6 +1007,14 @@ void SDKCall_VehicleSetupMove(Address serverVehicle, int client, Address ucmd, A
 {
 	if (g_SDKCallVehicleSetupMove != null)
 		SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
+}
+
+bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole role)
+{
+	if (g_SDKCallCanEnterVehicle != null)
+		return SDKCall(g_SDKCallCanEnterVehicle, client, serverVehicle, role);
+	
+	return false;
 }
 
 int SDKCall_GetVehicleEnt(Address serverVehicle)
