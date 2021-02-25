@@ -33,6 +33,8 @@
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 #define CONFIG_FILEPATH		"configs/vehicles/vehicles.cfg"
 
+#define SF_PROP_VEHICLE_SKIPENTERANIM	0x00000002
+
 #define ACTIVITY_NOT_AVAILABLE	-1
 
 enum PassengerRole
@@ -619,15 +621,17 @@ public void PropVehicleDriveable_Think(int vehicle)
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
+	bool skipEnterAnim = GetEntProp(vehicle, Prop_Data, "m_spawnflags") & SF_PROP_VEHICLE_SKIPENTERANIM != 0;
 	
 	if (sequence != 0)
 		SDKCall_StudioFrameAdvance(vehicle);
 	
-	if ((sequence == 0 || sequenceFinished) && (enterAnimOn || exitAnimOn))
+	if ((sequence == 0 || sequenceFinished) && (skipEnterAnim || (enterAnimOn || exitAnimOn)))
 	{
-		if (enterAnimOn)
+		if (skipEnterAnim || enterAnimOn)
 		{
 			AcceptEntityInput(vehicle, "TurnOn");
+			SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") & ~SF_PROP_VEHICLE_SKIPENTERANIM);
 			
 			CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
 		}
@@ -875,8 +879,9 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 		if (!CanEnterVehicle(client, vehicle))
 			return MRES_Supercede;
 		
-		//I don't know why we need to set this but entering vehicles doesn't work if we don't (client-side code?)
-		SetEntProp(vehicle, Prop_Send, "m_bEnterAnimOn", true);
+		//This is not really a "spawn" flag but it beats having to store this in an array somewhere
+		//We can NOT just set m_bEnterAnimOn as it will lead to the execution of unwanted client-side code
+		SetEntProp(vehicle, Prop_Data, "m_spawnflags", GetEntProp(vehicle, Prop_Data, "m_spawnflags") | SF_PROP_VEHICLE_SKIPENTERANIM);
 		
 		SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
 		
