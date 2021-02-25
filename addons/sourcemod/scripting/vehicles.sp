@@ -184,9 +184,6 @@ public void OnPluginStart()
 		kv.GoBack();
 	}
 	
-	SetupConVar("tf_allow_player_use", g_OldAllowPlayerUse, sizeof(g_OldAllowPlayerUse), "1");
-	SetupConVar("sv_turbophysics", g_OldTurboPhysics, sizeof(g_OldTurboPhysics), "0");
-	
 	GameData gamedata = new GameData("vehicles");
 	if (gamedata == null)
 		SetFailState("Could not find vehicles gamedata");
@@ -216,6 +213,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnMapStart()
 {
+	SetupConVar("tf_allow_player_use", g_OldAllowPlayerUse, sizeof(g_OldAllowPlayerUse), "1");
+	SetupConVar("sv_turbophysics", g_OldTurboPhysics, sizeof(g_OldTurboPhysics), "0");
+	
 	//Hook all vehicles
 	int vehicle;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
