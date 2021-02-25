@@ -250,7 +250,6 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_PostThink, Client_PostThink);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
 }
@@ -581,25 +580,6 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 //-----------------------------------------------------------------------------
 // SDKHooks
 //-----------------------------------------------------------------------------
-
-public void Client_PostThink(int client)
-{
-	if (GetEntPropEnt(client, Prop_Send, "m_hVehicle") != -1)
-	{
-		static bool clientCanExit[MAXPLAYERS + 1];
-		
-		//Player needs to release IN_USE before they can exit the vehicle
-		if (GetEntProp(client, Prop_Data, "m_afButtonReleased") & IN_USE)
-			clientCanExit[client] = true;
-		
-		//For some reason IN_USE never gets assigned to m_afButtonPressed inside vehicles, preventing exiting, so let's add it ourselves
-		if (GetClientButtons(client) & IN_USE && clientCanExit[client])
-		{
-			SetEntProp(client, Prop_Data, "m_afButtonPressed", GetEntProp(client, Prop_Data, "m_afButtonPressed") | IN_USE);
-			clientCanExit[client] = false;
-		}
-	}
-}
 
 public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
