@@ -102,6 +102,7 @@ ConVar tf_vehicle_lock_speed;
 ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 ConVar tf_vehicle_enable_entry_exit_anims;
+ConVar tf_vehicle_passenger_damage_modifier;
 
 DynamicHook g_DHookSetPassenger;
 DynamicHook g_DHookHandlePassengerEntry;
@@ -155,6 +156,7 @@ public void OnPluginStart()
 	//Create plugin convars
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
+	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
 	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental!)");
 	
@@ -243,6 +245,7 @@ public void OnMapStart()
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(vehicle, SDKHook_Use, PropVehicleDriveable_Use);
+		SDKHook(vehicle, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
 		
 		DHookVehicle(GetServerVehicle(vehicle));
 	}
@@ -272,6 +275,7 @@ public void OnEntityCreated(int entity)
 	{
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
+		SDKHook(entity, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
 		SDKHook(entity, SDKHook_Spawn, PropVehicleDriveable_Spawn);
 		SDKHook(entity, SDKHook_SpawnPost, PropVehicleDriveable_SpawnPost);
 	}
@@ -618,6 +622,14 @@ public void PropVehicleDriveable_Think(int vehicle)
 		
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(vehicle), exitAnimOn, true);
 	}
+}
+
+public Action PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
+{
+	//Make the driver take the damage
+	int client = GetEntPropEnt(vehicle, Prop_Send, "m_hPlayer");
+	if (0 < client <= MaxClients)
+		SDKHooks_TakeDamage(client, inflictor, attacker, damage * tf_vehicle_passenger_damage_modifier.FloatValue, damagetype, weapon, damageForce, damagePosition);
 }
 
 public void PropVehicleDriveable_Spawn(int vehicle)
