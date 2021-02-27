@@ -113,7 +113,6 @@ Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandleEntryExitFinish;
-Handle g_SDKCallGetDriver;
 Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
 
@@ -216,7 +215,6 @@ public void OnPluginStart()
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
-	g_SDKCallGetDriver = PrepSDKCall_GetDriver(gamedata);
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
 	
@@ -859,7 +857,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 	}
 	else
 	{
-		int client = SDKCall_GetDriver(serverVehicle);
+		int client = GetEntPropEnt(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_hPlayer");
 		if (client != -1)
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 	}
@@ -965,19 +963,6 @@ Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 	return call;
 }
 
-Handle PrepSDKCall_GetDriver(GameData gamedata)
-{
-	StartPrepSDKCall(SDKCall_Raw);
-	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::GetDriver");
-	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-	
-	Handle call = EndPrepSDKCall();
-	if (call == null)
-		LogMessage("Failed to create SDKCall: CBaseServerVehicle::GetDriver");
-	
-	return call;
-}
-
 Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Entity);
@@ -1031,14 +1016,6 @@ void SDKCall_HandleEntryExitFinish(Address serverVehicle, bool exitAnimOn, bool 
 {
 	if (g_SDKCallHandleEntryExitFinish != null)
 		SDKCall(g_SDKCallHandleEntryExitFinish, serverVehicle, exitAnimOn, resetAnim);
-}
-
-int SDKCall_GetDriver(Address serverVehicle)
-{
-	if (g_SDKCallGetDriver != null)
-		return SDKCall(g_SDKCallGetDriver, serverVehicle);
-	
-	return -1;
 }
 
 void SDKCall_StudioFrameAdvance(int entity)
