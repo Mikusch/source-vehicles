@@ -14,6 +14,11 @@
 				"linux"		"@_ZN11CBasePlayer15CanEnterVehicleEP14IServerVehiclei"
 				"windows"	"\x55\x8B\xEC\x56\x57\x8B\x7D\x08\x8B\xF1\xFF\x75\x0C"
 			}
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEPKcR6VectorR6QAngle"
+				"windows"	""	//FIXME: This function is inlined on Windows
+			}
 		}
 		"Offsets"
 		{

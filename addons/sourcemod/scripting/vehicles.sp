@@ -111,6 +111,7 @@ DynamicHook g_DHookIsPassengerVisible;
 
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
+Handle g_SDKCallGetAttachmentLocal;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallStudioFrameAdvance;
@@ -213,6 +214,7 @@ public void OnPluginStart()
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
+	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
@@ -875,6 +877,11 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 			if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
 			{
 				SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
+				
+				//Snap the driver's view where the vehicle is facing
+				float origin[3], angles[3];
+				if (SDKCall_GetAttachmentLocal(vehicle, "vehicle_driver_eyes", origin, angles))
+					TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
 			}
 		}
 		
@@ -932,6 +939,22 @@ Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 	Handle call = EndPrepSDKCall();
 	if (call == null)
 		LogMessage("Failed to create SDKCall: CBasePlayer::CanEnterVehicle");
+	
+	return call;
+}
+
+Handle PrepSDKCall_GetAttachmentLocal(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBaseAnimating::GetAttachmentLocal");
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
+	PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDKCall: CBaseAnimating::GetAttachmentLocal");
 	
 	return call;
 }
@@ -1000,6 +1023,14 @@ bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole ro
 {
 	if (g_SDKCallCanEnterVehicle != null)
 		return SDKCall(g_SDKCallCanEnterVehicle, client, serverVehicle, role);
+	
+	return false;
+}
+
+bool SDKCall_GetAttachmentLocal(int entity, const char[] name, float origin[3], float angles[3])
+{
+	if (g_SDKCallGetAttachmentLocal != null)
+		return SDKCall(g_SDKCallGetAttachmentLocal, entity, name, origin, angles);
 	
 	return false;
 }
