@@ -299,7 +299,9 @@ void CreateVehicle(int client, Vehicle config)
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
 	{
-		DispatchKeyValue(vehicle, "targetname", config.id);
+		char targetname[256];
+		Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
+		DispatchKeyValue(vehicle, "targetname", targetname);
 		DispatchKeyValue(vehicle, "model", config.model);
 		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
