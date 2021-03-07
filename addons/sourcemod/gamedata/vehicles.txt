@@ -4,10 +4,10 @@
 	{
 		"Signatures"
 		{
-			"CTFPlayerMove::SetupMove"
+			"CPlayerMove::SetupMove"
 			{
-				"linux"		"@_ZN13CTFPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x10\x56\x8B\x75\x08\x89\x4D\xFC"
+				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x60\x53\x56\x8B\x75\x14"
 			}
 			"CBasePlayer::CanEnterVehicle"
 			{
@@ -70,9 +70,9 @@
 		}
 		"Functions"
 		{
-			"CTFPlayerMove::SetupMove"
+			"CPlayerMove::SetupMove"
 			{
-				"signature"	"CTFPlayerMove::SetupMove"
+				"signature"	"CPlayerMove::SetupMove"
 				"callconv"	"thiscall"
 				"return"	"void"
 				"this"		"ignore"

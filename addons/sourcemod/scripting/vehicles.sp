@@ -206,7 +206,7 @@ public void OnPluginStart()
 	if (gamedata == null)
 		SetFailState("Could not find vehicles gamedata");
 	
-	CreateDynamicDetour(gamedata, "CTFPlayerMove::SetupMove", DHookCallback_SetupMovePre);
+	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
 	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
 	g_DHookGetExitAnimToUse = CreateDynamicHook(gamedata, "CBaseServerVehicle::GetExitAnimToUse");
@@ -810,7 +810,7 @@ void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback cal
 	}
 	else
 	{
-		LogError("Failed to find offset for %s", name);
+		LogError("Failed to create detour setup handle for %s", name);
 	}
 }
 
@@ -818,7 +818,7 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 {
 	DynamicHook hook = DynamicHook.FromConf(gamedata, name);
 	if (hook == null)
-		LogError("Failed to find offset for %s", name);
+		LogError("Failed to create hook setup handle for %s", name);
 	
 	return hook;
 }
@@ -925,7 +925,7 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogMessage("Failed to create SDKCall: CBaseServerVehicle::SetupMove");
+		LogMessage("Failed to create SDK call: CBaseServerVehicle::SetupMove");
 	
 	return call;
 }
@@ -940,7 +940,7 @@ Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogMessage("Failed to create SDKCall: CBasePlayer::CanEnterVehicle");
+		LogMessage("Failed to create SDK call: CBasePlayer::CanEnterVehicle");
 	
 	return call;
 }
@@ -956,7 +956,7 @@ Handle PrepSDKCall_GetAttachmentLocal(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogMessage("Failed to create SDKCall: CBaseAnimating::GetAttachmentLocal");
+		LogMessage("Failed to create SDK call: CBaseAnimating::GetAttachmentLocal");
 	
 	return call;
 }
@@ -969,7 +969,7 @@ Handle PrepSDKCall_GetVehicleEnt(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogMessage("Failed to create SDKCall: CBaseServerVehicle::GetVehicleEnt");
+		LogMessage("Failed to create SDK call: CBaseServerVehicle::GetVehicleEnt");
 	
 	return call;
 }
@@ -983,7 +983,7 @@ Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogMessage("Failed to create SDKCall: CBaseServerVehicle::HandleEntryExitFinish");
+		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandleEntryExitFinish");
 	
 	return call;
 }
@@ -995,7 +995,7 @@ Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogError("Failed to create SDKCall: CBaseAnimating::StudioFrameAdvance");
+		LogError("Failed to create SDK call: CBaseAnimating::StudioFrameAdvance");
 	
 	return call;
 }
@@ -1010,7 +1010,7 @@ Handle PrepSDKCall_GetInVehicle(GameData gamedata)
 	
 	Handle call = EndPrepSDKCall();
 	if (call == null)
-		LogError("Failed to create SDKCall: CBasePlayer::GetInVehicle");
+		LogError("Failed to create SDK call: CBasePlayer::GetInVehicle");
 	
 	return call;
 }
