@@ -279,17 +279,19 @@ public void OnEntityDestroyed(int entity)
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-void CreateVehicle(int client, Vehicle config)
+int CreateVehicle(Vehicle config)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
 	{
 		char targetname[256];
 		Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
+		
 		DispatchKeyValue(vehicle, "targetname", targetname);
 		DispatchKeyValue(vehicle, "model", config.model);
 		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
+		
 		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skin);
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
 		
@@ -297,9 +299,11 @@ void CreateVehicle(int client, Vehicle config)
 		{
 			AcceptEntityInput(vehicle, "HandBrakeOn");
 			
-			TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER);
+			return EntIndexToEntRef(vehicle);
 		}
 	}
+	
+	return INVALID_ENT_REFERENCE;
 }
 
 bool TeleportEntityToClientViewPos(int entity, int client, int mask)
@@ -560,11 +564,14 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	Vehicle config;
 	if (!GetConfigById(id, config))
 	{
-		ReplyToCommand(client, "%t", "#Command_CreateVehicle_InvalidName", id);
+		ReplyToCommand(client, "%t", "#Command_CreateVehicle_Invalid", id);
 		return Plugin_Handled;
 	}
 	
-	CreateVehicle(client, config);
+	int vehicle = CreateVehicle(config);
+	if (vehicle == INVALID_ENT_REFERENCE || !TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
+		LogError("Failed to create vehicle: %s", id);
+	
 	return Plugin_Handled;
 }
 
