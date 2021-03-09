@@ -39,7 +39,7 @@
 	"#Command_CreateVehicle_Invalid"
 	{
 		"#format"	"{1:s}"
-		"en"		"Invalid vehicle: {1}"
+		"en"		"Invalid or unknown vehicle: {1}"
 	}
 	
 	"#Command_DestroyVehicle_Success"

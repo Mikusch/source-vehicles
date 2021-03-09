@@ -115,6 +115,7 @@ Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
 Handle g_SDKCallGetAttachmentLocal;
 Handle g_SDKCallGetVehicleEnt;
+Handle g_SDKCallHandlePassengerEntry;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
@@ -153,7 +154,7 @@ public void OnPluginStart()
 		LoadSoundScript("scripts/game_sounds_vehicles.txt");
 #endif
 	else
-		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds.");
+		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds");
 	
 	//Create plugin convars
 	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to the SourceMod folder");
@@ -197,6 +198,7 @@ public void OnPluginStart()
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
 	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
+	g_SDKCallHandlePassengerEntry = PrepSDKCall_HandlePassengerEntry(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
@@ -212,6 +214,11 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
+	RegPluginLibrary("vehicles");
+	
+	CreateNative("TF2Vehicles_CreateVehicle", NativeCall_CreateVehicle);
+	CreateNative("TF2Vehicles_ForcePlayerIntoVehicle", NativeCall_ForcePlayerIntoVehicle);
+	
 	MarkNativeAsOptional("LoadSoundScript");
 }
 
@@ -485,6 +492,55 @@ void RestoreConVar(const char[] name, const char[] oldValue)
 public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	ReadVehicleConfig();
+}
+
+//-----------------------------------------------------------------------------
+// Natives
+//-----------------------------------------------------------------------------
+
+public int NativeCall_CreateVehicle(Handle plugin, int numParams)
+{
+	Vehicle config;
+	
+	char id[256];
+	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
+	{
+		int vehicle = CreateVehicle(config);
+		if (vehicle != INVALID_ENT_REFERENCE)
+		{
+			float origin[3], angles[3];
+			GetNativeArray(2, origin, sizeof(origin));
+			GetNativeArray(3, angles, sizeof(angles));
+			
+			TeleportEntity(vehicle, origin, angles, NULL_VECTOR);
+			return EntRefToEntIndex(vehicle);
+		}
+		else
+		{
+			return ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
+		}
+	}
+	else
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+	}
+}
+
+public int NativeCall_ForcePlayerIntoVehicle(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	int client = GetNativeCell(2);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	if (client < 1 || client > MaxClients)
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %d", client);
+	
+	if (!IsClientInGame(client))
+		ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not in game", client);
+	
+	SDKCall_HandlePassengerEntry(GetServerVehicle(vehicle), client, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1021,6 +1077,20 @@ Handle PrepSDKCall_GetVehicleEnt(GameData gamedata)
 	return call;
 }
 
+Handle PrepSDKCall_HandlePassengerEntry(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::HandlePassengerEntry");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandlePassengerEntry");
+	
+	return call;
+}
+
 Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Raw);
@@ -1090,6 +1160,12 @@ int SDKCall_GetVehicleEnt(Address serverVehicle)
 		return SDKCall(g_SDKCallGetVehicleEnt, serverVehicle);
 	
 	return -1;
+}
+
+void SDKCall_HandlePassengerEntry(Address serverVehicle, int passenger, bool allowEntryOutsideZone)
+{
+	if (g_SDKCallHandlePassengerEntry != null)
+		SDKCall(g_SDKCallHandlePassengerEntry, serverVehicle, passenger, allowEntryOutsideZone);
 }
 
 void SDKCall_HandleEntryExitFinish(Address serverVehicle, bool exitAnimOn, bool resetAnim)
