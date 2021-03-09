@@ -57,6 +57,7 @@ enum struct Vehicle
 	int skin;								/**< Model skin */
 	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
 	VehicleType type;						/**< The type of vehicle */
+	float lock_speed;						/**< Vehicle lock speed */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -79,6 +80,8 @@ enum struct Vehicle
 		else if (type[0] != '\0')
 			LogError("Invalid vehicle type '%s'", type);
 		
+		this.lock_speed = kv.GetFloat("lock_speed", this.lock_speed);
+		
 		if (kv.JumpToKey("downloads"))
 		{
 			if (kv.GotoFirstSubKey(false))
@@ -98,7 +101,6 @@ enum struct Vehicle
 }
 
 ConVar tf_vehicle_config;
-ConVar tf_vehicle_lock_speed;
 ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 ConVar tf_vehicle_enable_entry_exit_anims;
@@ -156,7 +158,6 @@ public void OnPluginStart()
 	//Create plugin convars
 	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to addons/sourcemod/");
 	tf_vehicle_config.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
-	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
@@ -696,7 +697,15 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	//m_pServerVehicle is initialized in Spawn so we hook it in SpawnPost
 	DHookVehicle(GetServerVehicle(vehicle));
 	
-	SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", tf_vehicle_lock_speed.FloatValue);
+	char model[PLATFORM_MAX_PATH], vehiclescript[PLATFORM_MAX_PATH];
+	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
+	GetEntPropString(vehicle, Prop_Data, "m_vehicleScript", vehiclescript, sizeof(vehiclescript));
+	
+	Vehicle config;
+	if (GetConfigByModelAndVehicleScript(model, vehiclescript, config))
+	{
+		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
+	}
 }
 
 public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
