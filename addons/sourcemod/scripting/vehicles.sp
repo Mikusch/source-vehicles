@@ -156,7 +156,7 @@ public void OnPluginStart()
 		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds.");
 	
 	//Create plugin convars
-	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to addons/sourcemod/");
+	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to the SourceMod folder");
 	tf_vehicle_config.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
@@ -387,6 +387,10 @@ bool CanEnterVehicle(int client, int vehicle)
 
 void ReadVehicleConfig()
 {
+	//Clear previously loaded vehicles
+	g_AllVehicles.Clear();
+	
+	//Build path to config file
 	char file[PLATFORM_MAX_PATH], path[PLATFORM_MAX_PATH];
 	tf_vehicle_config.GetString(file, sizeof(file));
 	BuildPath(Path_SM, path, sizeof(path), file);
@@ -395,8 +399,6 @@ void ReadVehicleConfig()
 	KeyValues kv = new KeyValues("Vehicles");
 	if (kv.ImportFromFile(path))
 	{
-		g_AllVehicles.Clear();
-		
 		//Read through every Vehicle
 		if (kv.GotoFirstSubKey(false))
 		{

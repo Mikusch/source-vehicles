@@ -75,7 +75,7 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 
 The plugin creates the following console variables:
 
-* `tf_vehicle_config ( def. "configs/vehicles/vehicles.cfg" )` - Configuration file to read all vehicles from, relative to addons/sourcemod/
+* `tf_vehicle_config ( def. "configs/vehicles/vehicles.cfg" )` - Configuration file to read all vehicles from, relative to the SourceMod folder
 * `tf_vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other players
 * `tf_vehicle_passenger_damage_modifier ( def. "1.0" )` - Modifier of damage dealt to vehicle passengers
 * `tf_vehicle_voicemenu_use ( def. "1" )` - Allow the 'MEDIC!' voice menu command to call +use
