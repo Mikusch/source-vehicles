@@ -31,7 +31,6 @@
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
-#define CONFIG_FILEPATH		"configs/vehicles/vehicles.cfg"
 
 #define ACTIVITY_NOT_AVAILABLE	-1
 
@@ -98,6 +97,7 @@ enum struct Vehicle
 	}
 }
 
+ConVar tf_vehicle_config;
 ConVar tf_vehicle_lock_speed;
 ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
@@ -154,6 +154,8 @@ public void OnPluginStart()
 		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds.");
 	
 	//Create plugin convars
+	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to addons/sourcemod/");
+	tf_vehicle_config.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
 	tf_vehicle_lock_speed = CreateConVar("tf_vehicle_lock_speed", "10.0", "Vehicle must be going slower than this for player to enter or exit, in in/sec", _, true, 0.0);
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
@@ -179,28 +181,6 @@ public void OnPluginStart()
 	}
 	
 	g_AllVehicles = new ArrayList(sizeof(Vehicle));
-	
-	char filePath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, filePath, sizeof(filePath), CONFIG_FILEPATH);
-	
-	//Read the vehicle configuration
-	KeyValues kv = new KeyValues("Vehicles");
-	if (kv.ImportFromFile(filePath))
-	{
-		//Read through every Vehicle
-		if (kv.GotoFirstSubKey(false))
-		{
-			do
-			{
-				Vehicle config;
-				config.ReadConfig(kv);
-				g_AllVehicles.PushArray(config);
-			}
-			while (kv.GotoNextKey(false));
-			kv.GoBack();
-		}
-		kv.GoBack();
-	}
 	
 	GameData gamedata = new GameData("vehicles");
 	if (gamedata == null)
@@ -249,6 +229,11 @@ public void OnMapStart()
 		
 		DHookVehicle(GetServerVehicle(vehicle));
 	}
+}
+
+public void OnConfigsExecuted()
+{
+	ReadVehicleConfig();
 }
 
 public void OnClientPutInServer(int client)
@@ -395,6 +380,41 @@ bool CanEnterVehicle(int client, int vehicle)
 	return !GetEntProp(vehicle, Prop_Data, "m_bLocked") && GetEntProp(vehicle, Prop_Data, "m_nSpeed") <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit");
 }
 
+void ReadVehicleConfig()
+{
+	char file[PLATFORM_MAX_PATH], path[PLATFORM_MAX_PATH];
+	tf_vehicle_config.GetString(file, sizeof(file));
+	BuildPath(Path_SM, path, sizeof(path), file);
+	
+	//Read the vehicle configuration
+	KeyValues kv = new KeyValues("Vehicles");
+	if (kv.ImportFromFile(path))
+	{
+		g_AllVehicles.Clear();
+		
+		//Read through every Vehicle
+		if (kv.GotoFirstSubKey(false))
+		{
+			do
+			{
+				Vehicle config;
+				config.ReadConfig(kv);
+				g_AllVehicles.PushArray(config);
+			}
+			while (kv.GotoNextKey(false));
+			kv.GoBack();
+		}
+		kv.GoBack();
+		delete kv;
+		
+		LogMessage("Successfully loaded %d vehicles from configuration", g_AllVehicles.Length);
+	}
+	else
+	{
+		LogError("Failed to import configuration file: %s", file);
+	}
+}
+
 bool GetConfigById(const char[] id, Vehicle buffer)
 {
 	int index = g_AllVehicles.FindString(id);
@@ -449,6 +469,15 @@ void RestoreConVar(const char[] name, const char[] oldValue)
 	{
 		convar.SetString(oldValue);
 	}
+}
+
+//-----------------------------------------------------------------------------
+// ConVars
+//-----------------------------------------------------------------------------
+
+public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	ReadVehicleConfig();
 }
 
 //-----------------------------------------------------------------------------
