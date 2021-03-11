@@ -49,7 +49,7 @@ enum VehicleType
 	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3)
 }
 
-enum struct Vehicle
+enum struct VehicleConfig
 {
 	char id[256];							/**< Unique identifier of the vehicle */
 	char name[256];							/**< Display name of the vehicle */
@@ -58,6 +58,7 @@ enum struct Vehicle
 	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
 	VehicleType type;						/**< The type of vehicle */
 	float lock_speed;						/**< Vehicle lock speed */
+	bool is_passenger_visible;				/**< Whether the passenger is visible */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -81,6 +82,7 @@ enum struct Vehicle
 			LogError("Invalid vehicle type '%s'", type);
 		
 		this.lock_speed = kv.GetFloat("lock_speed", this.lock_speed);
+		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", this.is_passenger_visible));
 		
 		if (kv.JumpToKey("downloads"))
 		{
@@ -182,7 +184,7 @@ public void OnPluginStart()
 			OnClientPutInServer(client);
 	}
 	
-	g_AllVehicles = new ArrayList(sizeof(Vehicle));
+	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	
 	GameData gamedata = new GameData("vehicles");
 	if (gamedata == null)
@@ -287,7 +289,7 @@ public void OnEntityDestroyed(int entity)
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-int CreateVehicle(Vehicle config)
+int CreateVehicle(VehicleConfig config)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
@@ -411,7 +413,7 @@ void ReadVehicleConfig()
 		{
 			do
 			{
-				Vehicle config;
+				VehicleConfig config;
 				config.ReadConfig(kv);
 				g_AllVehicles.PushArray(config);
 			}
@@ -429,7 +431,7 @@ void ReadVehicleConfig()
 	}
 }
 
-bool GetConfigById(const char[] id, Vehicle buffer)
+bool GetConfigById(const char[] id, VehicleConfig buffer)
 {
 	int index = g_AllVehicles.FindString(id);
 	if (index != -1)
@@ -438,7 +440,7 @@ bool GetConfigById(const char[] id, Vehicle buffer)
 	return false;
 }
 
-bool GetConfigByModel(const char[] model, Vehicle buffer)
+bool GetConfigByModel(const char[] model, VehicleConfig buffer)
 {
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
@@ -452,7 +454,7 @@ bool GetConfigByModel(const char[] model, Vehicle buffer)
 	return false;
 }
 
-bool GetConfigByModelAndVehicleScript(const char[] model, const char[] vehiclescript, Vehicle buffer)
+bool GetConfigByModelAndVehicleScript(const char[] model, const char[] vehiclescript, VehicleConfig buffer)
 {
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
@@ -464,6 +466,15 @@ bool GetConfigByModelAndVehicleScript(const char[] model, const char[] vehiclesc
 	}
 	
 	return false;
+}
+
+bool GetConfigByVehicleEnt(int vehicle, VehicleConfig buffer)
+{
+	char model[PLATFORM_MAX_PATH], vehiclescript[PLATFORM_MAX_PATH];
+	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
+	GetEntPropString(vehicle, Prop_Data, "m_vehicleScript", vehiclescript, sizeof(vehiclescript));
+	
+	return GetConfigByModelAndVehicleScript(model, vehiclescript, buffer);
 }
 
 void SetupConVar(const char[] name, char[] oldValue, int maxlength, const char[] newValue)
@@ -500,7 +511,7 @@ public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldVa
 
 public int NativeCall_CreateVehicle(Handle plugin, int numParams)
 {
-	Vehicle config;
+	VehicleConfig config;
 	
 	char id[256];
 	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
@@ -620,7 +631,7 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	char id[256];
 	GetCmdArgString(id, sizeof(id));
 	
-	Vehicle config;
+	VehicleConfig config;
 	if (!GetConfigById(id, config))
 	{
 		ReplyToCommand(client, "%t", "#Command_CreateVehicle_Invalid", id);
@@ -735,7 +746,7 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
 	GetEntPropString(vehicle, Prop_Data, "m_vehicleScript", vehiclescript, sizeof(vehiclescript));
 	
-	Vehicle config;
+	VehicleConfig config;
 	
 	//If no script is set, try to find a matching config entry and set it ourselves
 	if (vehiclescript[0] == '\0' && GetConfigByModel(model, config))
@@ -755,12 +766,8 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	//m_pServerVehicle is initialized in Spawn so we hook it in SpawnPost
 	DHookVehicle(GetServerVehicle(vehicle));
 	
-	char model[PLATFORM_MAX_PATH], vehiclescript[PLATFORM_MAX_PATH];
-	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
-	GetEntPropString(vehicle, Prop_Data, "m_vehicleScript", vehiclescript, sizeof(vehiclescript));
-	
-	Vehicle config;
-	if (GetConfigByModelAndVehicleScript(model, vehiclescript, config))
+	VehicleConfig config;
+	if (GetConfigByVehicleEnt(vehicle, config))
 	{
 		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
 	}
@@ -844,7 +851,7 @@ void DisplayVehicleCreateMenu(int client)
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
-		Vehicle config;
+		VehicleConfig config;
 		if (g_AllVehicles.GetArray(i, config, sizeof(config)) > 0)
 		{
 			menu.AddItem(config.id, config.id);
@@ -872,7 +879,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 		case MenuAction_DisplayItem:
 		{
 			char info[32], display[128];
-			Vehicle config;
+			VehicleConfig config;
 			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config))
 			{
 				SetGlobalTransTarget(param1);
@@ -1009,8 +1016,14 @@ public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHoo
 
 public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
 {
-	ret.Value = true;
-	return MRES_Supercede;
+	VehicleConfig config;
+	if (GetConfigByVehicleEnt(SDKCall_GetVehicleEnt(serverVehicle), config))
+	{
+		ret.Value = config.is_passenger_visible;
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
 }
 
 //-----------------------------------------------------------------------------
