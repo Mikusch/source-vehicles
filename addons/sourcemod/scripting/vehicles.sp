@@ -218,8 +218,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	RegPluginLibrary("vehicles");
 	
-	CreateNative("TF2Vehicles_CreateVehicle", NativeCall_CreateVehicle);
-	CreateNative("TF2Vehicles_ForcePlayerIntoVehicle", NativeCall_ForcePlayerIntoVehicle);
+	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
+	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 	
 	MarkNativeAsOptional("LoadSoundScript");
 }
@@ -509,7 +509,7 @@ public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldVa
 // Natives
 //-----------------------------------------------------------------------------
 
-public int NativeCall_CreateVehicle(Handle plugin, int numParams)
+public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 {
 	VehicleConfig config;
 	
@@ -537,7 +537,7 @@ public int NativeCall_CreateVehicle(Handle plugin, int numParams)
 	}
 }
 
-public int NativeCall_ForcePlayerIntoVehicle(Handle plugin, int numParams)
+public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 {
 	int vehicle = GetNativeCell(1);
 	int client = GetNativeCell(2);

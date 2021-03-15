@@ -15,23 +15,42 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * Creates a vehicle at the given origin and angles.
- *
- * @param id		Unique identifier of the vehicle, as defined in the vehicle configuration.
- * @param origin	Origin to spawn entity at.
- * @param angles	Angles to spawn entity at.
- * @return			Entity index of the vehicle.
- */
-native int TF2Vehicles_CreateVehicle(const char[] id, const float origin[3] = NULL_VECTOR, const float angles[3] = NULL_VECTOR);
-
-/**
- * Forces a player into a specific vehicle.
- *
- * @param vehicle	Entity index of the vehicle.
- * @param client	Client index.
- */
-native void TF2Vehicles_ForcePlayerIntoVehicle(int vehicle, int client);
+methodmap Vehicle
+{
+	public Vehicle(int entity)
+	{
+		return view_as<Vehicle>(entity);
+	}
+	
+	/**
+	 * The entity index.
+	 */
+	property int Entity
+	{
+		public get()
+		{
+			return view_as<int>(this);
+		}
+	}
+	
+	/**
+	 * Creates a new vehicle and spawns it.
+	 *
+	 * @param id		The identifier of the vehicle to spawn, as defined in the configuration.
+	 * @param origin	Origin to spawn vehicle at.
+	 * @param angles	Angles to spawn vehicle at.
+	 *
+	 * @return			The vehicle.
+	 */
+	public static native Vehicle Create(const char[] id, const float origin[3], const float angles[3]);
+	
+	/**
+	 * Forces a client into this vehicle.
+	 *
+	 * @param	Client index.
+	 */
+	public native void ForcePlayerIn(int client);
+}
 
 public SharedPlugin __pl_vehicles =
 {
@@ -47,7 +66,7 @@ public SharedPlugin __pl_vehicles =
 #if !defined REQUIRE_PLUGIN
 public __pl_vehicles_SetNTVOptional()
 {
-	MarkNativeAsOptional("TF2Vehicles_CreateVehicle");
-	MarkNativeAsOptional("TF2Vehicles_ForcePlayerIntoVehicle");
+	MarkNativeAsOptional("Vehicle.Create");
+	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
 }
 #endif
