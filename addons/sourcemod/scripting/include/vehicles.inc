@@ -43,3 +43,11 @@ public SharedPlugin __pl_vehicles =
 	required = 0,
 #endif
 };
+
+#if !defined REQUIRE_PLUGIN
+public __pl_vehicles_SetNTVOptional()
+{
+	MarkNativeAsOptional("TF2Vehicles_CreateVehicle");
+	MarkNativeAsOptional("TF2Vehicles_ForcePlayerIntoVehicle");
+}
+#endif
