@@ -50,12 +50,14 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 {
 	"0"
 	{
-		"id"		"example_vehicle"
-		"name"		"#Vehicle_ExampleVehicle"
-		"model"		"models/vehicles/example_vehicle.mdl"
-		"skin"		"0"
-		"vehiclescript"	"scripts/vehicles/example_vehicle.txt"
-		"type"		"car_wheels"
+		"id"					"example_vehicle"
+		"name"					"#Vehicle_ExampleVehicle"
+		"model"					"models/vehicles/example_vehicle.mdl"
+		"skins"					"0,1,2"
+		"vehiclescript"			"scripts/vehicles/example_vehicle.txt"
+		"type"					"car_wheels"
+		"lock_speed"			"10.0"
+		"is_passenger_visible"	"1"
 		"downloads"
 		{
 			"0"	"models/vehicles/example_vehicle.dx80.vtx"
