@@ -54,7 +54,7 @@ enum struct VehicleConfig
 	char id[256];							/**< Unique identifier of the vehicle */
 	char name[256];							/**< Display name of the vehicle */
 	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
-	int skin;								/**< Model skin */
+	ArrayList skins;						/**< Model skins */
 	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
 	VehicleType type;						/**< The type of vehicle */
 	float lock_speed;						/**< Vehicle lock speed */
@@ -65,10 +65,24 @@ enum struct VehicleConfig
 		kv.GetString("id", this.id, 256, this.id);
 		kv.GetString("name", this.name, 256, this.name);
 		kv.GetString("model", this.model, PLATFORM_MAX_PATH, this.model);
-		this.skin = kv.GetNum("skin", this.skin);
+		
+		this.skins = new ArrayList();
+		
+		char skins[128];
+		kv.GetString("skins", skins, sizeof(skins), "0");
+		
+		char split[32][4];
+		int retrieved = ExplodeString(skins, ",", split, sizeof(split), sizeof(split[]));
+		for (int i = 0; i < retrieved; i++)
+		{
+			int skin;
+			if (TrimString(split[i]) > 0 && StringToIntEx(split[i], skin) > 0)
+				this.skins.Push(skin);
+		}
+		
 		kv.GetString("vehiclescript", this.vehiclescript, PLATFORM_MAX_PATH, this.vehiclescript);
 		
-		char type[256];
+		char type[32];
 		kv.GetString("type", type, sizeof(type));
 		if (StrEqual(type, "car_wheels"))
 			this.type = VEHICLE_TYPE_CAR_WHEELS;
@@ -302,7 +316,7 @@ int CreateVehicle(VehicleConfig config)
 		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
 		
-		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skin);
+		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
 		
 		if (DispatchSpawn(vehicle))
