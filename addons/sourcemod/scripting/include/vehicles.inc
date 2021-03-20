@@ -50,6 +50,11 @@ methodmap Vehicle
 	 * @param	Client index.
 	 */
 	public native void ForcePlayerIn(int client);
+	
+	/**
+	 * Forces the driver out of this vehicle.
+	 */
+	public native void ForcePlayerOut();
 }
 
 public SharedPlugin __pl_vehicles =
@@ -68,5 +73,6 @@ public __pl_vehicles_SetNTVOptional()
 {
 	MarkNativeAsOptional("Vehicle.Create");
 	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
+	MarkNativeAsOptional("Vehicle.ForcePlayerOut");
 }
 #endif

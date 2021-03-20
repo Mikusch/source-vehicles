@@ -17,8 +17,7 @@
 			"CBaseAnimating::GetAttachmentLocal"
 			{
 				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEPKcR6VectorR6QAngle"
-				//FIXME: This is actually the signature for CBaseAnimating::GetAttachment because CBaseAnimating::GetAttachmentLocal is inlined on Windows. It serves no real purpose other than preventing the plugin from complaining about missing signatures.
-				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\xF1\x80\xBE\x41\x03\x00\x00\x00\x75\x2A\x83\xBE\x6C\x04\x00\x00\x00\x75\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8B\x86\x6C\x04\x00\x00\x85\xC0\x74\x2A\x83\x38\x00\x74\x2A\xFF\x75\x08\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x8D\x48\x01\xEB\x2A\x33\xC9\x8B\x06\x8D\x55\xD0\x52\x51\x8B\xCE\x8B\x80\x40\x03\x00\x00\xFF\xD0\xFF\x75\x10"
+				//FIXME: The signature for CBaseAnimating::GetAttachmentLocal is inlined on Windows
 			}
 		}
 		"Offsets"
@@ -47,6 +46,11 @@
 			{
 				"linux"		"17"
 				"windows"	"17"
+			}
+			"CBaseServerVehicle::HandlePassengerExit"
+			{
+				"linux"		"18"
+				"windows"	"18"
 			}
 			"CBaseServerVehicle::GetExitAnimToUse"
 			{

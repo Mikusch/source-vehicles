@@ -132,6 +132,7 @@ Handle g_SDKCallCanEnterVehicle;
 Handle g_SDKCallGetAttachmentLocal;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandlePassengerEntry;
+Handle g_SDKCallHandlePassengerExit;
 Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
@@ -215,6 +216,7 @@ public void OnPluginStart()
 	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandlePassengerEntry = PrepSDKCall_HandlePassengerEntry(gamedata);
+	g_SDKCallHandlePassengerExit = PrepSDKCall_HandlePassengerExit(gamedata);
 	g_SDKCallHandleEntryExitFinish = PrepSDKCall_HandleEntryExitFinish(gamedata);
 	g_SDKCallStudioFrameAdvance = PrepSDKCall_StudioFrameAdvance(gamedata);
 	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
@@ -234,6 +236,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	
 	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
 	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
+	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
 	
 	MarkNativeAsOptional("LoadSoundScript");
 }
@@ -566,6 +569,21 @@ public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not in game", client);
 	
 	SDKCall_HandlePassengerEntry(GetServerVehicle(vehicle), client, true);
+}
+
+public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	
+	if (client == -1)
+		return;
+	
+	SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), client);
 }
 
 //-----------------------------------------------------------------------------
@@ -1118,6 +1136,20 @@ Handle PrepSDKCall_HandlePassengerEntry(GameData gamedata)
 	return call;
 }
 
+Handle PrepSDKCall_HandlePassengerExit(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseServerVehicle::HandlePassengerExit");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandlePassengerExit");
+	
+	return call;
+}
+
 Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Raw);
@@ -1193,6 +1225,14 @@ void SDKCall_HandlePassengerEntry(Address serverVehicle, int passenger, bool all
 {
 	if (g_SDKCallHandlePassengerEntry != null)
 		SDKCall(g_SDKCallHandlePassengerEntry, serverVehicle, passenger, allowEntryOutsideZone);
+}
+
+bool SDKCall_HandlePassengerExit(Address serverVehicle, int passenger)
+{
+	if (g_SDKCallHandlePassengerExit != null)
+		return SDKCall(g_SDKCallHandlePassengerExit, serverVehicle, passenger);
+	
+	return false;
 }
 
 void SDKCall_HandleEntryExitFinish(Address serverVehicle, bool exitAnimOn, bool resetAnim)
