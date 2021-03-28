@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.6.2"
+#define PLUGIN_VERSION	"1.7.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -54,9 +54,10 @@ enum struct VehicleConfig
 	char id[256];							/**< Unique identifier of the vehicle */
 	char name[256];							/**< Display name of the vehicle */
 	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
-	ArrayList skins;						/**< Model skins */
-	char vehiclescript[PLATFORM_MAX_PATH];	/**< Vehicle script path */
+	char script[PLATFORM_MAX_PATH];			/**< Vehicle script path */
 	VehicleType type;						/**< The type of vehicle */
+	ArrayList skins;						/**< Model skins */
+	char key_hint[256];						/**< Vehicle key hint */
 	float lock_speed;						/**< Vehicle lock speed */
 	bool is_passenger_visible;				/**< Whether the passenger is visible */
 	
@@ -65,6 +66,20 @@ enum struct VehicleConfig
 		kv.GetString("id", this.id, 256, this.id);
 		kv.GetString("name", this.name, 256, this.name);
 		kv.GetString("model", this.model, PLATFORM_MAX_PATH, this.model);
+		kv.GetString("script", this.script, PLATFORM_MAX_PATH, this.script);
+		
+		char type[32];
+		kv.GetString("type", type, sizeof(type));
+		if (StrEqual(type, "car_wheels"))
+			this.type = VEHICLE_TYPE_CAR_WHEELS;
+		else if (StrEqual(type, "car_raycast"))
+			this.type = VEHICLE_TYPE_CAR_RAYCAST;
+		else if (StrEqual(type, "jetski_raycast"))
+			this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
+		else if (StrEqual(type, "airboat_raycast"))
+			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
+		else if (type[0] != '\0')
+			LogError("Invalid vehicle type '%s'", type);
 		
 		this.skins = new ArrayList();
 		
@@ -80,23 +95,9 @@ enum struct VehicleConfig
 				this.skins.Push(skin);
 		}
 		
-		kv.GetString("vehiclescript", this.vehiclescript, PLATFORM_MAX_PATH, this.vehiclescript);
-		
-		char type[32];
-		kv.GetString("type", type, sizeof(type));
-		if (StrEqual(type, "car_wheels"))
-			this.type = VEHICLE_TYPE_CAR_WHEELS;
-		else if (StrEqual(type, "car_raycast"))
-			this.type = VEHICLE_TYPE_CAR_RAYCAST;
-		else if (StrEqual(type, "jetski_raycast"))
-			this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
-		else if (StrEqual(type, "airboat_raycast"))
-			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
-		else if (type[0] != '\0')
-			LogError("Invalid vehicle type '%s'", type);
-		
-		this.lock_speed = kv.GetFloat("lock_speed", this.lock_speed);
-		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", this.is_passenger_visible));
+		this.lock_speed = kv.GetFloat("lock_speed", 10.0);
+		kv.GetString("key_hint", this.key_hint, 256);
+		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
 		
 		if (kv.JumpToKey("downloads"))
 		{
@@ -316,7 +317,7 @@ int CreateVehicle(VehicleConfig config)
 		
 		DispatchKeyValue(vehicle, "targetname", targetname);
 		DispatchKeyValue(vehicle, "model", config.model);
-		DispatchKeyValue(vehicle, "vehiclescript", config.vehiclescript);
+		DispatchKeyValue(vehicle, "vehiclescript", config.script);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
 		
 		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
@@ -477,7 +478,7 @@ bool GetConfigByModelAndVehicleScript(const char[] model, const char[] vehiclesc
 	{
 		if (g_AllVehicles.GetArray(i, buffer, sizeof(buffer)) > 0)
 		{
-			if (StrEqual(model, buffer.model) && StrEqual(vehiclescript, buffer.vehiclescript))
+			if (StrEqual(model, buffer.model) && StrEqual(vehiclescript, buffer.script))
 				return true;
 		}
 	}
@@ -598,17 +599,11 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 		if (client != -1)
 		{
-			//Show different key hints based on vehicle type
-			switch (GetEntProp(vehicle, Prop_Data, "m_nVehicleType"))
+			//Show different key hints based on vehicle
+			VehicleConfig config;
+			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != '\0')
 			{
-				case VEHICLE_TYPE_CAR_WHEELS, VEHICLE_TYPE_CAR_RAYCAST:
-				{
-					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Car");
-				}
-				case VEHICLE_TYPE_JETSKI_RAYCAST, VEHICLE_TYPE_AIRBOAT_RAYCAST:
-				{
-					ShowKeyHintText(client, "%t", "#Hint_VehicleKeys_Airboat");
-				}
+				ShowKeyHintText(client, "%t", config.key_hint);
 			}
 		}
 	}
@@ -768,8 +763,17 @@ public Action PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int 
 {
 	//Make the driver take the damage
 	int client = GetEntPropEnt(vehicle, Prop_Send, "m_hPlayer");
-	if (0 < client <= MaxClients)
-		SDKHooks_TakeDamage(client, inflictor, attacker, damage * tf_vehicle_passenger_damage_modifier.FloatValue, damagetype, weapon, damageForce, damagePosition);
+	if (client != -1)
+	{
+		//Never take crush damage
+		if (damagetype & DMG_CRUSH)
+			return Plugin_Continue;
+		
+		//Scale the damage
+		SDKHooks_TakeDamage(client, inflictor, attacker, damage * tf_vehicle_passenger_damage_modifier.FloatValue, damagetype | DMG_VEHICLE, weapon, damageForce, damagePosition);
+	}
+	
+	return Plugin_Continue;
 }
 
 public void PropVehicleDriveable_Spawn(int vehicle)
@@ -783,8 +787,8 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 	//If no script is set, try to find a matching config entry and set it ourselves
 	if (vehiclescript[0] == '\0' && GetConfigByModel(model, config))
 	{
-		vehiclescript = config.vehiclescript;
-		DispatchKeyValue(vehicle, "VehicleScript", config.vehiclescript);
+		vehiclescript = config.script;
+		DispatchKeyValue(vehicle, "VehicleScript", config.script);
 	}
 	
 	if (GetConfigByModelAndVehicleScript(model, vehiclescript, config))
@@ -1026,6 +1030,8 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 				float origin[3], angles[3];
 				if (SDKCall_GetAttachmentLocal(vehicle, "vehicle_driver_eyes", origin, angles))
 					TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
+				
+				CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
 			}
 		}
 		
