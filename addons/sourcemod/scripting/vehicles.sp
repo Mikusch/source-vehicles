@@ -401,6 +401,7 @@ Address GetServerVehicle(int vehicle)
 	return view_as<Address>(GetEntData(vehicle, offset));
 }
 
+//This is pretty much an exact copy of CPropVehicleDriveable::CanEnterVehicle
 bool CanEnterVehicle(int client, int vehicle)
 {
 	//Prevent entering if the vehicle's being driven by another player
@@ -408,8 +409,28 @@ bool CanEnterVehicle(int client, int vehicle)
 	if (driver != -1 && driver != client)
 		return false;
 	
+	if (IsOverturned(vehicle))
+		return false;
+	
 	//Prevent entering if the vehicle's locked, or if it's moving too fast.
 	return !GetEntProp(vehicle, Prop_Data, "m_bLocked") && GetEntProp(vehicle, Prop_Data, "m_nSpeed") <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit");
+}
+
+bool IsOverturned(int vehicle)
+{
+	float angles[3];
+	GetEntPropVector(vehicle, Prop_Data, "m_angAbsRotation", angles);
+	
+	float up[3];
+	GetAngleVectors(angles, NULL_VECTOR, NULL_VECTOR, up);
+	
+	float upDot = GetVectorDotProduct(view_as<float>( { 0.0, 0.0, 1.0 } ), up);
+	
+	//Tweak this number to adjust what's considered "overturned"
+	if (upDot < 0.0)
+		return true;
+	
+	return false;
 }
 
 void ReadVehicleConfig()
