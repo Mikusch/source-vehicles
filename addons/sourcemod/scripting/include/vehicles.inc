@@ -34,15 +34,25 @@ methodmap Vehicle
 	}
 	
 	/**
+	 * The owner entity of this vehicle.
+	 */
+	property int Owner
+	{
+		public native get();
+		public native set(int owner);
+	}
+	
+	/**
 	 * Creates a new vehicle and spawns it.
 	 *
 	 * @param id		The identifier of the vehicle to spawn, as defined in the configuration.
 	 * @param origin	Origin to spawn vehicle at.
 	 * @param angles	Angles to spawn vehicle at.
+	 * @param owner		The owner entity of this vehicle.
 	 *
 	 * @return			The vehicle.
 	 */
-	public static native Vehicle Create(const char[] id, const float origin[3], const float angles[3]);
+	public static native Vehicle Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
 	
 	/**
 	 * Forces a client into this vehicle.
@@ -71,6 +81,8 @@ public SharedPlugin __pl_vehicles =
 #if !defined REQUIRE_PLUGIN
 public __pl_vehicles_SetNTVOptional()
 {
+	MarkNativeAsOptional("Vehicle.Owner.get");
+	MarkNativeAsOptional("Vehicle.Owner.set");
 	MarkNativeAsOptional("Vehicle.Create");
 	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
 	MarkNativeAsOptional("Vehicle.ForcePlayerOut");

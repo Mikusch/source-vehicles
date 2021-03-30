@@ -43,23 +43,23 @@ enum PassengerRole
 
 enum VehicleType
 {
-	VEHICLE_TYPE_CAR_WHEELS = (1 << 0), 
-	VEHICLE_TYPE_CAR_RAYCAST = (1 << 1), 
-	VEHICLE_TYPE_JETSKI_RAYCAST = (1 << 2), 
+	VEHICLE_TYPE_CAR_WHEELS = (1 << 0),
+	VEHICLE_TYPE_CAR_RAYCAST = (1 << 1),
+	VEHICLE_TYPE_JETSKI_RAYCAST = (1 << 2),
 	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3)
 }
 
 enum struct VehicleConfig
 {
-	char id[256];							/**< Unique identifier of the vehicle */
-	char name[256];							/**< Display name of the vehicle */
-	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
-	char script[PLATFORM_MAX_PATH];			/**< Vehicle script path */
-	VehicleType type;						/**< The type of vehicle */
-	ArrayList skins;						/**< Model skins */
-	char key_hint[256];						/**< Vehicle key hint */
-	float lock_speed;						/**< Vehicle lock speed */
-	bool is_passenger_visible;				/**< Whether the passenger is visible */
+	char id[256];					/**< Unique identifier of the vehicle */
+	char name[256];					/**< Display name of the vehicle */
+	char model[PLATFORM_MAX_PATH];	/**< Vehicle model */
+	char script[PLATFORM_MAX_PATH];	/**< Vehicle script path */
+	VehicleType type;				/**< The type of vehicle */
+	ArrayList skins;				/**< Model skins */
+	char key_hint[256];				/**< Vehicle key hint */
+	float lock_speed;				/**< Vehicle lock speed */
+	bool is_passenger_visible;		/**< Whether the passenger is visible */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -117,6 +117,17 @@ enum struct VehicleConfig
 	}
 }
 
+enum struct VehicleProperties
+{
+	int entity;
+	int owner;
+	
+	void Initialize(int entity)
+	{
+		this.entity = entity;
+	}
+}
+
 ConVar tf_vehicle_config;
 ConVar tf_vehicle_physics_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
@@ -139,11 +150,58 @@ Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
 
 ArrayList g_AllVehicles;
+ArrayList g_VehicleProperties;
 
 char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
 bool g_ClientInUse[MAXPLAYERS + 1];
+
+methodmap Vehicle
+{
+	public Vehicle(int entity)
+	{
+		if (!IsValidEntity(entity))
+			return view_as<Vehicle>(INVALID_ENT_REFERENCE);
+		
+		entity = EntIndexToEntRef(entity);
+		
+		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
+		{
+			VehicleProperties properties;
+			properties.Initialize(entity);
+			
+			g_VehicleProperties.PushArray(properties);
+		}
+		
+		return view_as<Vehicle>(entity);
+	}
+	
+	property int Owner
+	{
+		public get()
+		{
+			int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
+			return g_VehicleProperties.Get(index, VehicleProperties::owner);
+		}
+		public set(int value)
+		{
+			int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
+			g_VehicleProperties.Set(index, value, VehicleProperties::owner);
+		}
+	}
+	
+	public void Destroy()
+	{
+		int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
+		g_VehicleProperties.Erase(index);
+	}
+	
+	public static void InitializePropertyList()
+	{
+		g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
+	}
+}
 
 public Plugin myinfo = 
 {
@@ -193,6 +251,8 @@ public void OnPluginStart()
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
+	Vehicle.InitializePropertyList();
+	
 	//Hook all clients
 	for (int client = 1; client <= MaxClients; client++)
 	{
@@ -235,6 +295,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	RegPluginLibrary("vehicles");
 	
+	CreateNative("Vehicle.Owner.get", NativeCall_VehicleOwnerGet);
+	CreateNative("Vehicle.Owner.set", NativeCall_VehicleOwnerSet);
 	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
 	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
@@ -300,14 +362,17 @@ public void OnEntityDestroyed(int entity)
 		return;
 	
 	if (IsEntityVehicle(entity))
+	{
+		Vehicle(entity).Destroy();
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
+	}
 }
 
 //-----------------------------------------------------------------------------
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-int CreateVehicle(VehicleConfig config)
+int CreateVehicle(VehicleConfig config, int owner = 0)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
@@ -322,6 +387,8 @@ int CreateVehicle(VehicleConfig config)
 		
 		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
+		
+		Vehicle(vehicle).Owner = owner;
 		
 		if (DispatchSpawn(vehicle))
 		{
@@ -548,6 +615,27 @@ public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldVa
 // Natives
 //-----------------------------------------------------------------------------
 
+public int NativeCall_VehicleOwnerGet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	return Vehicle(vehicle).Owner;
+}
+
+public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	int owner = GetNativeCell(2);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	return Vehicle(vehicle).Owner = owner;
+}
+
 public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 {
 	VehicleConfig config;
@@ -555,7 +643,7 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 	char id[256];
 	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
 	{
-		int vehicle = CreateVehicle(config);
+		int vehicle = CreateVehicle(config, GetNativeCell(4));
 		if (vehicle != INVALID_ENT_REFERENCE)
 		{
 			float origin[3], angles[3];
@@ -686,7 +774,7 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	int vehicle = CreateVehicle(config);
+	int vehicle = CreateVehicle(config, client);
 	if (vehicle == INVALID_ENT_REFERENCE || !TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
 		LogError("Failed to create vehicle: %s", id);
 	
