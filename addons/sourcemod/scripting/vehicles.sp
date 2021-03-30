@@ -134,6 +134,9 @@ ConVar tf_vehicle_voicemenu_use;
 ConVar tf_vehicle_enable_entry_exit_anims;
 ConVar tf_vehicle_passenger_damage_modifier;
 
+GlobalForward g_ForwardOnVehicleSpawned;
+GlobalForward g_ForwardOnVehicleDestroyed;
+
 DynamicHook g_DHookSetPassenger;
 DynamicHook g_DHookHandlePassengerEntry;
 DynamicHook g_DHookGetExitAnimToUse;
@@ -301,6 +304,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
 	
+	g_ForwardOnVehicleSpawned = new GlobalForward("OnVehicleSpawned", ET_Ignore, Param_Cell);
+	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
+	
 	MarkNativeAsOptional("LoadSoundScript");
 }
 
@@ -363,6 +369,8 @@ public void OnEntityDestroyed(int entity)
 	
 	if (IsEntityVehicle(entity))
 	{
+		Forward_OnVehicleDestroyed(entity);
+		
 		Vehicle(entity).Destroy();
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
 	}
@@ -697,6 +705,24 @@ public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
 }
 
 //-----------------------------------------------------------------------------
+// Forwards
+//-----------------------------------------------------------------------------
+
+void Forward_OnVehicleSpawned(int vehicle)
+{
+	Call_StartForward(g_ForwardOnVehicleSpawned);
+	Call_PushCell(vehicle);
+	Call_Finish();
+}
+
+void Forward_OnVehicleDestroyed(int vehicle)
+{
+	Call_StartForward(g_ForwardOnVehicleDestroyed);
+	Call_PushCell(vehicle);
+	Call_Finish();
+}
+
+//-----------------------------------------------------------------------------
 // Timers
 //-----------------------------------------------------------------------------
 
@@ -916,6 +942,8 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	{
 		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
 	}
+	
+	Forward_OnVehicleSpawned(vehicle);
 }
 
 public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)

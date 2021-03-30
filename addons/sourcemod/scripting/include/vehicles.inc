@@ -67,6 +67,18 @@ methodmap Vehicle
 	public native void ForcePlayerOut();
 }
 
+/**
+ * Called when a vehicle entity has spawned.
+ */
+forward void OnVehicleSpawned(int vehicle);
+
+/**
+ * Called when a vehicle entity is destroyed.
+ *
+ * This should be used
+ */
+forward void OnVehicleDestroyed(int vehicle);
+
 public SharedPlugin __pl_vehicles =
 {
 	name = "vehicles",
