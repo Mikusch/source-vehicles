@@ -35,6 +35,8 @@ methodmap Vehicle
 	
 	/**
 	 * The owner entity of this vehicle.
+	 *
+	 * @note You should use this property over m_hOwnerEntity if you want the owner to collide with the vehicle.
 	 */
 	property int Owner
 	{
@@ -68,14 +70,22 @@ methodmap Vehicle
 }
 
 /**
- * Called when a vehicle entity has spawned.
+ * Called when a vehicle entity has been spawned and fully initialized.
+ *
+ * @note It is safe to remove the entity in this forward.
+ *
+ * @param vehicle	The vehicle entity.
+ * @error Invalid vehicle index.
  */
 forward void OnVehicleSpawned(int vehicle);
 
 /**
  * Called when a vehicle entity is destroyed.
  *
- * This should be used
+ * @note You should implement this forward over OnEntityDestroyed if you need to access the vehicle's properties.
+ *
+ * @param vehicle	The vehicle entity.
+ * @error Invalid vehicle index.
  */
 forward void OnVehicleDestroyed(int vehicle);
 
