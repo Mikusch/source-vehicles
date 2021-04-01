@@ -36,7 +36,7 @@
 		"ru"	"Удалить весь созданный транспорт (!removeallvehicles)"
 	}
 	
-	"#Command_CreateVehicle_InvalidName"
+	"#Command_CreateVehicle_Invalid"
 	{
 		"#format"	"{1:s}"
 		"ru"		"Транспортное средство с названием \"{1}\" не найдено."

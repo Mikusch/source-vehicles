@@ -17,7 +17,7 @@
 			"CBaseAnimating::GetAttachmentLocal"
 			{
 				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEPKcR6VectorR6QAngle"
-				"windows"	""	//FIXME: This function is inlined on Windows
+				//FIXME: The signature for CBaseAnimating::GetAttachmentLocal is inlined on Windows
 			}
 		}
 		"Offsets"
@@ -46,6 +46,11 @@
 			{
 				"linux"		"17"
 				"windows"	"17"
+			}
+			"CBaseServerVehicle::HandlePassengerExit"
+			{
+				"linux"		"18"
+				"windows"	"18"
 			}
 			"CBaseServerVehicle::GetExitAnimToUse"
 			{

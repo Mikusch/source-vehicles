@@ -13,7 +13,7 @@
 	"#Menu_Title_Main"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Welcome to the vehicle plugin {1} by {2}\n{3}"
+		"en"		"Driveable Team Fortress 2 Vehicles ({1}) by {2}\n{3}"
 	}
 	
 	"#Menu_Title_CreateVehicle"
@@ -36,10 +36,10 @@
 		"en"	"Remove all vehicles (!removeallvehicles)"
 	}
 	
-	"#Command_CreateVehicle_InvalidName"
+	"#Command_CreateVehicle_Invalid"
 	{
 		"#format"	"{1:s}"
-		"en"		"No vehicle with name \"{1}\" found."
+		"en"		"Invalid or unknown vehicle: {1}"
 	}
 	
 	"#Command_DestroyVehicle_Success"
