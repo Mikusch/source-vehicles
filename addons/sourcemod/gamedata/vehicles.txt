@@ -72,6 +72,11 @@
 				"linux"		"397"
 				"windows"	"396"
 			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"398"
+				"windows"	"397"
+			}
 		}
 		"Functions"
 		{
@@ -119,6 +124,20 @@
 					}
 				}
 			}
+			"CBaseServerVehicle::IsPassengerVisible"
+			{
+				"offset"	"CBaseServerVehicle::IsPassengerVisible"
+				"hooktype"	"raw"
+				"return"	"bool"
+				"this"		"address"
+				"arguments"
+				{
+					"nRole"
+					{
+						"type"	"int"
+					}
+				}
+			}
 			"CBaseServerVehicle::HandlePassengerEntry"
 			{
 				"offset"	"CBaseServerVehicle::HandlePassengerEntry"
@@ -134,6 +153,20 @@
 					"bAllowEntryOutsideZone"
 					{
 						"type"	"bool"
+					}
+				}
+			}
+			"CBaseServerVehicle::HandlePassengerExit"
+			{
+				"offset"	"CBaseServerVehicle::HandlePassengerEntry"
+				"hooktype"	"raw"
+				"return"	"bool"
+				"this"		"address"
+				"arguments"
+				{
+					"pPassenger"
+					{
+						"type"	"cbaseentity"
 					}
 				}
 			}
@@ -155,17 +188,39 @@
 					}
 				}
 			}
-			"CBaseServerVehicle::IsPassengerVisible"
+			"CBasePlayer::GetInVehicle"
 			{
-				"offset"	"CBaseServerVehicle::IsPassengerVisible"
-				"hooktype"	"raw"
+				"offset"	"CBasePlayer::GetInVehicle"
+				"hooktype"	"entity"
 				"return"	"bool"
-				"this"		"address"
+				"this"		"entity"
 				"arguments"
 				{
+					"pVehicle"
+					{
+						"type"	"int"
+					}
 					"nRole"
 					{
 						"type"	"int"
+					}
+				}
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"offset"	"CBasePlayer::LeaveVehicle"
+				"hooktype"	"entity"
+				"return"	"void"
+				"this"		"entity"
+				"arguments"
+				{
+					"vecExitPoint"
+					{
+						"type"	"vectorptr"
+					}
+					"vecExitAngles"
+					{
+						"type"	"vectorptr"
 					}
 				}
 			}

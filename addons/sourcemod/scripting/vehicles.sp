@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.7.1"
+#define PLUGIN_VERSION	"1.7.2"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -138,9 +138,11 @@ GlobalForward g_ForwardOnVehicleSpawned;
 GlobalForward g_ForwardOnVehicleDestroyed;
 
 DynamicHook g_DHookSetPassenger;
+DynamicHook g_DHookIsPassengerVisible;
 DynamicHook g_DHookHandlePassengerEntry;
 DynamicHook g_DHookGetExitAnimToUse;
-DynamicHook g_DHookIsPassengerVisible;
+DynamicHook g_DHookGetInVehicle;
+DynamicHook g_DHookLeaveVehicle;
 
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
@@ -256,13 +258,6 @@ public void OnPluginStart()
 	
 	Vehicle.InitializePropertyList();
 	
-	//Hook all clients
-	for (int client = 1; client <= MaxClients; client++)
-	{
-		if (IsClientInGame(client))
-			OnClientPutInServer(client);
-	}
-	
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	
 	GameData gamedata = new GameData("vehicles");
@@ -271,9 +266,11 @@ public void OnPluginStart()
 	
 	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
+	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
 	g_DHookGetExitAnimToUse = CreateDynamicHook(gamedata, "CBaseServerVehicle::GetExitAnimToUse");
-	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
+	g_DHookGetInVehicle = CreateDynamicHook(gamedata, "CBasePlayer::GetInVehicle");
+	g_DHookLeaveVehicle = CreateDynamicHook(gamedata, "CBasePlayer::LeaveVehicle");
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
@@ -286,6 +283,13 @@ public void OnPluginStart()
 	g_SDKCallGetInVehicle = PrepSDKCall_GetInVehicle(gamedata);
 	
 	delete gamedata;
+	
+	//Hook all clients
+	for (int client = 1; client <= MaxClients; client++)
+	{
+		if (IsClientInGame(client))
+			OnClientPutInServer(client);
+	}
 }
 
 public void OnPluginEnd()
@@ -334,6 +338,7 @@ public void OnConfigsExecuted()
 
 public void OnClientPutInServer(int client)
 {
+	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
 }
@@ -1105,19 +1110,28 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	return hook;
 }
 
+void DHookClient(int client)
+{
+	if (g_DHookGetInVehicle != null)
+		g_DHookGetInVehicle.HookEntity(Hook_Pre, client, DHookCallback_GetInVehiclePre);
+	
+	if (g_DHookLeaveVehicle != null)
+		g_DHookLeaveVehicle.HookEntity(Hook_Pre, client, DHookCallback_LeaveVehiclePre);
+}
+
 void DHookVehicle(Address serverVehicle)
 {
 	if (g_DHookSetPassenger != null)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
+	
+	if (g_DHookIsPassengerVisible != null)
+		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
 	
 	if (g_DHookHandlePassengerEntry != null)
 		g_DHookHandlePassengerEntry.HookRaw(Hook_Pre, serverVehicle, DHookCallback_HandlePassengerEntryPre);
 	
 	if (g_DHookGetExitAnimToUse != null)
 		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
-	
-	if (g_DHookIsPassengerVisible != null)
-		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
 }
 
 public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
@@ -1147,6 +1161,18 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 		if (client != -1)
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 	}
+}
+
+public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
+{
+	VehicleConfig config;
+	if (GetConfigByVehicleEnt(SDKCall_GetVehicleEnt(serverVehicle), config))
+	{
+		ret.Value = config.is_passenger_visible;
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, DHookParam params)
@@ -1188,16 +1214,16 @@ public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHoo
 	return MRES_Ignored;
 }
 
-public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
+public MRESReturn DHookCallback_GetInVehiclePre(int client)
 {
-	VehicleConfig config;
-	if (GetConfigByVehicleEnt(SDKCall_GetVehicleEnt(serverVehicle), config))
-	{
-		ret.Value = config.is_passenger_visible;
-		return MRES_Supercede;
-	}
-	
-	return MRES_Ignored;
+	//Disable client prediction for less jittery movement
+	SendConVarValue(client, FindConVar("sv_client_predict"), "0");
+}
+
+public MRESReturn DHookCallback_LeaveVehiclePre(int client)
+{
+	//Re-enable client prediction
+	SendConVarValue(client, FindConVar("sv_client_predict"), "1");
 }
 
 //-----------------------------------------------------------------------------
