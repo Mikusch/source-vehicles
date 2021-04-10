@@ -1217,13 +1217,15 @@ public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHoo
 public MRESReturn DHookCallback_GetInVehiclePre(int client)
 {
 	//Disable client prediction for less jittery movement
-	SendConVarValue(client, FindConVar("sv_client_predict"), "0");
+	if (!IsFakeClient(client))
+		SendConVarValue(client, FindConVar("sv_client_predict"), "0");
 }
 
 public MRESReturn DHookCallback_LeaveVehiclePre(int client)
 {
 	//Re-enable client prediction
-	SendConVarValue(client, FindConVar("sv_client_predict"), "1");
+	if (!IsFakeClient(client))
+		SendConVarValue(client, FindConVar("sv_client_predict"), "1");
 }
 
 //-----------------------------------------------------------------------------
