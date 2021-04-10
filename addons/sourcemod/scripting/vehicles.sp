@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.7.0"
+#define PLUGIN_VERSION	"1.7.1"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -878,8 +878,7 @@ public void PropVehicleDriveable_Think(int vehicle)
 	bool enterAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bEnterAnimOn"));
 	bool exitAnimOn = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bExitAnimOn"));
 	
-	if (sequence != 0)
-		SDKCall_StudioFrameAdvance(vehicle);
+	SDKCall_StudioFrameAdvance(vehicle);
 	
 	if ((sequence == 0 || sequenceFinished) && (enterAnimOn || exitAnimOn))
 	{
