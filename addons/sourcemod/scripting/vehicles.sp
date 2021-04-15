@@ -355,9 +355,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	return Plugin_Continue;
 }
 
-public void OnEntityCreated(int entity)
+public void OnEntityCreated(int entity, const char[] classname)
 {
-	if (IsEntityVehicle(entity))
+	if (StrEqual(classname, VEHICLE_CLASSNAME))
 	{
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
@@ -385,7 +385,7 @@ public void OnEntityDestroyed(int entity)
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-int CreateVehicle(VehicleConfig config, int owner = 0)
+int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int owner = 0)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
@@ -397,6 +397,8 @@ int CreateVehicle(VehicleConfig config, int owner = 0)
 		DispatchKeyValue(vehicle, "model", config.model);
 		DispatchKeyValue(vehicle, "vehiclescript", config.script);
 		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
+		DispatchKeyValueVector(vehicle, "origin", origin);
+		DispatchKeyValueVector(vehicle, "angles", angles);
 		
 		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
 		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
@@ -462,7 +464,7 @@ void ShowKeyHintText(int client, const char[] format, any...)
 
 bool IsEntityVehicle(int entity)
 {
-	char classname[256];
+	char classname[32];
 	return GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
 }
 
@@ -656,14 +658,14 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 	char id[256];
 	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
 	{
-		int vehicle = CreateVehicle(config, GetNativeCell(4));
+		float origin[3], angles[3];
+		GetNativeArray(2, origin, sizeof(origin));
+		GetNativeArray(3, angles, sizeof(angles));
+		int owner = GetNativeCell(4);
+		
+		int vehicle = CreateVehicle(config, origin, angles, owner);
 		if (vehicle != INVALID_ENT_REFERENCE)
 		{
-			float origin[3], angles[3];
-			GetNativeArray(2, origin, sizeof(origin));
-			GetNativeArray(3, angles, sizeof(angles));
-			
-			TeleportEntity(vehicle, origin, angles, NULL_VECTOR);
 			return EntRefToEntIndex(vehicle);
 		}
 		else
@@ -805,9 +807,19 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	int vehicle = CreateVehicle(config, client);
-	if (vehicle == INVALID_ENT_REFERENCE || !TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
+	int vehicle = CreateVehicle(config, NULL_VECTOR, NULL_VECTOR, client);
+	if (vehicle == INVALID_ENT_REFERENCE)
+	{
 		LogError("Failed to create vehicle: %s", id);
+		return Plugin_Handled;
+	}
+	
+	if (!TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
+	{
+		RemoveEntity(vehicle);
+		LogError("Failed to teleport vehicle: %s", id);
+		return Plugin_Handled;
+	}
 	
 	return Plugin_Handled;
 }
