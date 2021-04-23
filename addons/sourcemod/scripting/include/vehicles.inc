@@ -15,6 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#if defined _vehicles_included
+ #endinput
+#endif
+#define _vehicles_included
+
 methodmap Vehicle
 {
 	public Vehicle(int entity)
