@@ -757,13 +757,12 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 
 public Action CommandListener_VoiceMenu(int client, const char[] command, int args)
 {
-	char arg1[2];
-	char arg2[2];
-	GetCmdArg(1, arg1, sizeof(arg1));
-	GetCmdArg(2, arg2, sizeof(arg2));
-	
 	if (tf_vehicle_voicemenu_use.BoolValue)
 	{
+		char arg1[2], arg2[2];
+		GetCmdArg(1, arg1, sizeof(arg1));
+		GetCmdArg(2, arg2, sizeof(arg2));
+		
 		if (arg1[0] == '0' && arg2[0] == '0')	//MEDIC!
 		{
 			g_ClientInUse[client] = true;
@@ -1069,7 +1068,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 		{
 			char info[32], display[128];
 			VehicleConfig config;
-			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config))
+			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config) && TranslationPhraseExists(config.name))
 			{
 				SetGlobalTransTarget(param1);
 				Format(display, sizeof(display), "%t", config.name);
