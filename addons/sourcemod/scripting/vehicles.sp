@@ -100,7 +100,7 @@ enum struct VehicleConfig
 		kv.GetString("key_hint", this.key_hint, 256);
 		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
 		
-		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH, "passtime/ball_homing.wav");
+		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH, "ambient_mp3/mvm_warehouse/car_horn_03.mp3");
 		if (this.horn_sound[0] != '\0')
 		{
 			char filepath[PLATFORM_MAX_PATH];
