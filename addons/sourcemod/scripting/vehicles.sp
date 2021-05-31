@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.8.0"
+#define PLUGIN_VERSION	"1.9.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -51,15 +51,17 @@ enum VehicleType
 
 enum struct VehicleConfig
 {
-	char id[256];					/**< Unique identifier of the vehicle */
-	char name[256];					/**< Display name of the vehicle */
-	char model[PLATFORM_MAX_PATH];	/**< Vehicle model */
-	char script[PLATFORM_MAX_PATH];	/**< Vehicle script path */
-	VehicleType type;				/**< The type of vehicle */
-	ArrayList skins;				/**< Model skins */
-	char key_hint[256];				/**< Vehicle key hint */
-	float lock_speed;				/**< Vehicle lock speed */
-	bool is_passenger_visible;		/**< Whether the passenger is visible */
+	char id[256];						/**< Unique identifier of the vehicle */
+	char name[256];						/**< Display name of the vehicle */
+	char model[PLATFORM_MAX_PATH];		/**< Vehicle model */
+	char script[PLATFORM_MAX_PATH];		/**< Vehicle script path */
+	VehicleType type;					/**< The type of vehicle */
+	ArrayList skins;					/**< Model skins */
+	char key_hint[256];					/**< Vehicle key hint */
+	float lock_speed;					/**< Vehicle lock speed */
+	bool is_passenger_visible;			/**< Whether the passenger is visible */
+	bool has_horn;						/**< Whether this vehicle has a horn*/
+	char horn_sound[PLATFORM_MAX_PATH];	/**< Custom looping horn sound */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -98,6 +100,23 @@ enum struct VehicleConfig
 		this.lock_speed = kv.GetFloat("lock_speed", 10.0);
 		kv.GetString("key_hint", this.key_hint, 256);
 		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
+		
+		this.has_horn = view_as<bool>(kv.GetNum("has_horn", true));
+		
+		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH, "passtime/ball_homing.wav");
+		char filepath[PLATFORM_MAX_PATH];
+		Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
+		if (FileExists(filepath, true))
+		{
+			AddFileToDownloadsTable(filepath);
+			Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
+			PrecacheSound(this.horn_sound);
+		}
+		else
+		{
+			LogError("The file '%s' does not exist!", filepath);
+			this.has_horn = false;
+		}
 		
 		if (kv.JumpToKey("downloads"))
 		{
@@ -161,6 +180,7 @@ char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
 bool g_ClientInUse[MAXPLAYERS + 1];
+bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 
 methodmap Vehicle
 {
@@ -341,10 +361,33 @@ public void OnClientPutInServer(int client)
 	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
+	g_ClientIsUsingHorn[client] = false;
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
+	int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
+	if (vehicle != -1)
+	{
+		VehicleConfig config;
+		if (GetConfigByVehicleEnt(vehicle, config) && config.has_horn)
+		{
+			if (buttons & IN_ATTACK3)
+			{
+				if (!g_ClientIsUsingHorn[client])
+				{
+					g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC);
+				}
+			}
+			else if (g_ClientIsUsingHorn[client])
+			{
+				g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+				EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, _, SND_STOPLOOPING);
+			}
+		}
+	}
+	
 	if (g_ClientInUse[client])
 	{
 		g_ClientInUse[client] = !g_ClientInUse[client];
@@ -1162,15 +1205,26 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 
 public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookParam params)
 {
+	int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
+	
 	if (!params.IsNull(2))
 	{
 		SetEntProp(params.Get(2), Prop_Send, "m_bDrawViewmodel", false);
 	}
 	else
 	{
-		int client = GetEntPropEnt(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_hPlayer");
+		VehicleConfig config;
+		if (GetConfigByVehicleEnt(vehicle, config) && config.has_horn)
+		{
+			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, _, SND_STOPLOOPING);
+		}
+		
+		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 		if (client != -1)
+		{
+			g_ClientIsUsingHorn[client] = false;
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
+		}
 	}
 }
 
