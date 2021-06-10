@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.8.0"
+#define PLUGIN_VERSION	"1.9.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
 
@@ -51,15 +51,16 @@ enum VehicleType
 
 enum struct VehicleConfig
 {
-	char id[256];					/**< Unique identifier of the vehicle */
-	char name[256];					/**< Display name of the vehicle */
-	char model[PLATFORM_MAX_PATH];	/**< Vehicle model */
-	char script[PLATFORM_MAX_PATH];	/**< Vehicle script path */
-	VehicleType type;				/**< The type of vehicle */
-	ArrayList skins;				/**< Model skins */
-	char key_hint[256];				/**< Vehicle key hint */
-	float lock_speed;				/**< Vehicle lock speed */
-	bool is_passenger_visible;		/**< Whether the passenger is visible */
+	char id[256];						/**< Unique identifier of the vehicle */
+	char name[256];						/**< Display name of the vehicle */
+	char model[PLATFORM_MAX_PATH];		/**< Vehicle model */
+	char script[PLATFORM_MAX_PATH];		/**< Vehicle script path */
+	VehicleType type;					/**< The type of vehicle */
+	ArrayList skins;					/**< Model skins */
+	char key_hint[256];					/**< Vehicle key hint */
+	float lock_speed;					/**< Vehicle lock speed */
+	bool is_passenger_visible;			/**< Whether the passenger is visible */
+	char horn_sound[PLATFORM_MAX_PATH];	/**< Custom horn sound */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -99,6 +100,24 @@ enum struct VehicleConfig
 		kv.GetString("key_hint", this.key_hint, 256);
 		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
 		
+		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH, "ambient_mp3/mvm_warehouse/car_horn_03.mp3");
+		if (this.horn_sound[0] != '\0')
+		{
+			char filepath[PLATFORM_MAX_PATH];
+			Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
+			if (FileExists(filepath, true))
+			{
+				AddFileToDownloadsTable(filepath);
+				Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
+				PrecacheSound(this.horn_sound);
+			}
+			else
+			{
+				LogError("The file '%s' does not exist!", filepath);
+				this.horn_sound[0] = '\0';
+			}
+		}
+		
 		if (kv.JumpToKey("downloads"))
 		{
 			if (kv.GotoFirstSubKey(false))
@@ -130,9 +149,10 @@ enum struct VehicleProperties
 
 ConVar tf_vehicle_config;
 ConVar tf_vehicle_physics_damage_modifier;
+ConVar tf_vehicle_passenger_damage_modifier;
 ConVar tf_vehicle_voicemenu_use;
 ConVar tf_vehicle_enable_entry_exit_anims;
-ConVar tf_vehicle_passenger_damage_modifier;
+ConVar tf_vehicle_allow_horns;
 
 GlobalForward g_ForwardOnVehicleSpawned;
 GlobalForward g_ForwardOnVehicleDestroyed;
@@ -161,6 +181,7 @@ char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
 bool g_ClientInUse[MAXPLAYERS + 1];
+bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 
 methodmap Vehicle
 {
@@ -243,7 +264,8 @@ public void OnPluginStart()
 	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
-	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental!)");
+	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental)");
+	tf_vehicle_allow_horns = CreateConVar("tf_vehicle_allow_horns", "1", "Allow players to use vehicle horns");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -341,10 +363,36 @@ public void OnClientPutInServer(int client)
 	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	g_ClientInUse[client] = false;
+	g_ClientIsUsingHorn[client] = false;
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
+	if (tf_vehicle_allow_horns.BoolValue)
+	{
+		int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
+		if (vehicle != -1)
+		{
+			VehicleConfig config;
+			if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+			{
+				if (buttons & IN_ATTACK3)
+				{
+					if (!g_ClientIsUsingHorn[client])
+					{
+						g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+						EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT);
+					}
+				}
+				else if (g_ClientIsUsingHorn[client])
+				{
+					g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
+				}
+			}
+		}
+	}
+	
 	if (g_ClientInUse[client])
 	{
 		g_ClientInUse[client] = !g_ClientInUse[client];
@@ -1162,15 +1210,27 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 
 public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookParam params)
 {
+	int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
+	
 	if (!params.IsNull(2))
 	{
 		SetEntProp(params.Get(2), Prop_Send, "m_bDrawViewmodel", false);
 	}
 	else
 	{
-		int client = GetEntPropEnt(SDKCall_GetVehicleEnt(serverVehicle), Prop_Data, "m_hPlayer");
+		//Stop any horn sounds when the player leaves the vehicle
+		VehicleConfig config;
+		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+		{
+			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
+		}
+		
+		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 		if (client != -1)
+		{
+			g_ClientIsUsingHorn[client] = false;
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
+		}
 	}
 }
 
