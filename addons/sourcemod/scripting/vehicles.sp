@@ -387,7 +387,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				else if (g_ClientIsUsingHorn[client])
 				{
 					g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
-					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOPLOOPING);
+					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 				}
 			}
 		}
@@ -1222,7 +1222,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 		VehicleConfig config;
 		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
 		{
-			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOPLOOPING);
+			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 		}
 		
 		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
