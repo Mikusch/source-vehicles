@@ -381,7 +381,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if (!g_ClientIsUsingHorn[client])
 					{
 						g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
-						EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, _, _, GetRandomInt(95, 105));
+						EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT);
 					}
 				}
 				else if (g_ClientIsUsingHorn[client])
