@@ -90,7 +90,7 @@ The plugin creates the following console variables:
 * `vehicle_physics_damage_modifier ( def. "1.0" )` - Modifier of impact-based physics damage against other players
 * `vehicle_passenger_damage_modifier ( def. "1.0" )` - Modifier of damage dealt to vehicle passengers
 * `vehicle_enable_entry_exit_anims ( def. "0" )` - If set to 1, enables entry and exit animations (experimental)
-* `vehicle_allow_horns ( def. "1" )` - If set to 1, enables vehicle horns
+* `vehicle_enable_horns ( def. "1" )` - If set to 1, enables vehicle horns
 
 ## Physics Damage
 
