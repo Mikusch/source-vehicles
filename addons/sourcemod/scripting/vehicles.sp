@@ -179,7 +179,6 @@ ArrayList g_VehicleProperties;
 char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
-bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 
 methodmap Vehicle
@@ -361,7 +360,6 @@ public void OnClientPutInServer(int client)
 {
 	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
-	g_ClientInUse[client] = false;
 	g_ClientIsUsingHorn[client] = false;
 }
 
@@ -390,13 +388,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
-	}
-	
-	if (g_ClientInUse[client])
-	{
-		g_ClientInUse[client] = !g_ClientInUse[client];
-		buttons |= IN_USE;
-		return Plugin_Changed;
 	}
 	
 	return Plugin_Continue;
