@@ -252,11 +252,17 @@ public void OnPluginStart()
 	
 	//Load common vehicle sounds
 	if (LibraryExists("LoadSoundscript"))
+	{
 #if defined _loadsoundscript_included
 		LoadSoundScript("scripts/game_sounds_vehicles.txt");
+#else
+		LogMessage("LoadSoundscript extension was found but plugin was compiled without support for it, vehicles won't have sounds");
 #endif
+	} 
 	else
+	{
 		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds");
+	}
 	
 	//Create plugin convars
 	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to the SourceMod folder");
