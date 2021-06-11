@@ -1,7 +1,13 @@
 "Games"
 {
-	"tf"
+	"#default"
 	{
+		"#supported"
+		{
+			"game"	"tf"
+			"game"	"cstrike"
+		}
+		
 		"Signatures"
 		{
 			"CPlayerMove::SetupMove"
@@ -20,6 +26,7 @@
 				//FIXME: The signature for CBaseAnimating::GetAttachmentLocal is inlined on Windows
 			}
 		}
+		
 		"Offsets"
 		{
 			"CBaseServerVehicle::SetupMove"
@@ -62,22 +69,8 @@
 				"linux"		"22"
 				"windows"	"22"
 			}
-			"CBaseAnimating::StudioFrameAdvance"
-			{
-				"linux"		"194"
-				"windows"	"193"
-			}
-			"CBasePlayer::GetInVehicle"
-			{
-				"linux"		"397"
-				"windows"	"396"
-			}
-			"CBasePlayer::LeaveVehicle"
-			{
-				"linux"		"398"
-				"windows"	"397"
-			}
 		}
+		
 		"Functions"
 		{
 			"CPlayerMove::SetupMove"
@@ -223,6 +216,50 @@
 						"type"	"vectorptr"
 					}
 				}
+			}
+		}
+	}
+	
+	"tf"
+	{
+		"Offsets"
+		{
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"194"
+				"windows"	"193"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"397"
+				"windows"	"396"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"398"
+				"windows"	"397"
+			}
+		}
+	}
+	
+	"cstrike"
+	{
+		"Offsets"
+		{
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"191"
+				"windows"	"190"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"394"
+				"windows"	"393"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"395"
+				"windows"	"394"
 			}
 		}
 	}

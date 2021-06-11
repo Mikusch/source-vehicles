@@ -244,9 +244,6 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	if (GetEngineVersion() != Engine_TF2)
-		SetFailState("This plugin is only compatible with Team Fortress 2");
-	
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
 	
