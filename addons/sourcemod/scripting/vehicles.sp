@@ -28,7 +28,7 @@
 
 #define PLUGIN_VERSION	"2.0.0"
 #define PLUGIN_AUTHOR	"Mikusch"
-#define PLUGIN_URL		"https://github.com/Mikusch/mp-vehicles"
+#define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 

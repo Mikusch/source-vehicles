@@ -1,9 +1,9 @@
-# Driveable Vehicles
+# Driveable Vehicles for Source Engine Multiplayer
 
 This is a SourceMod plugin that allows spawning driveable vehicles based on `prop_vehicle_driveable` in Source engine
 multiplayer games.
 
-**Supported games:**
+**List of supported games:**
 
 * Team Fortress 2
 * Counter-Strike: Source
@@ -30,7 +30,7 @@ This plugin bundles the required entity fixes, and a few configurable nice-to-ha
 
 ## Installation
 
-1. Download the latest version from the [releases](https://github.com/Mikusch/mp-vehicles/releases) page
+1. Download the latest version from the [releases](https://github.com/Mikusch/source-vehicles/releases) page
 2. Extract the contents of the ZIP file into your server's game directory
 3. Restart your server or type `sm plugins load vehicles` into your server console
 
@@ -40,6 +40,8 @@ There is a menu combining all the plugin's features that can be accessed using `
 
 Additionally, you may use `sm_createvehicle` to create and `sm_removevehicle` to remove a vehicle. To remove all
 vehicles in the map, use `sm_removeallvehicles`.
+
+To enter a vehicle, look at it and use the `+use` console command.
 
 ## Configuration
 
@@ -57,15 +59,15 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 {
 	"0"
 	{
-		"id"					"example_vehicle"
-		"name"					"#Vehicle_ExampleVehicle"
-		"model"					"models/vehicles/example_vehicle.mdl"
-		"script"				"scripts/vehicles/example_vehicle.txt"
-		"type"					"car_wheels"
-		"skins"					"0,1,2"
-		"key_hint"				"#Hint_VehicleKeys_Car"
+		"id"				"example_vehicle"
+		"name"				"#Vehicle_ExampleVehicle"
+		"model"				"models/vehicles/example_vehicle.mdl"
+		"script"			"scripts/vehicles/example_vehicle.txt"
+		"type"				"car_wheels"
+		"skins"				"0,1,2"
+		"key_hint"			"#Hint_VehicleKeys_Car"
 		"lock_speed"			"10.0"
-		"is_passenger_visible"	"1"
+		"is_passenger_visible"		"1"
 		"horn_sound"			"sounds/vehicles/example_horn.wav"
 		"downloads"
 		{
