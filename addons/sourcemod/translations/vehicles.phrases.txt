@@ -13,7 +13,7 @@
 	"#Menu_Title_Main"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
-		"en"		"Driveable Team Fortress 2 Vehicles ({1}) by {2}\n{3}"
+		"en"		"Driveable Vehicles ({1}) by {2}\n{3}"
 	}
 	
 	"#Menu_Title_CreateVehicle"

@@ -26,9 +26,9 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"1.9.0"
+#define PLUGIN_VERSION	"2.0.0"
 #define PLUGIN_AUTHOR	"Mikusch"
-#define PLUGIN_URL		"https://github.com/Mikusch/tf-vehicles"
+#define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
 
@@ -100,7 +100,7 @@ enum struct VehicleConfig
 		kv.GetString("key_hint", this.key_hint, 256);
 		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
 		
-		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH, "ambient_mp3/mvm_warehouse/car_horn_03.mp3");
+		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH);
 		if (this.horn_sound[0] != '\0')
 		{
 			char filepath[PLATFORM_MAX_PATH];
@@ -147,12 +147,11 @@ enum struct VehicleProperties
 	}
 }
 
-ConVar tf_vehicle_config;
-ConVar tf_vehicle_physics_damage_modifier;
-ConVar tf_vehicle_passenger_damage_modifier;
-ConVar tf_vehicle_voicemenu_use;
-ConVar tf_vehicle_enable_entry_exit_anims;
-ConVar tf_vehicle_allow_horns;
+ConVar vehicle_config_path;
+ConVar vehicle_physics_damage_modifier;
+ConVar vehicle_passenger_damage_modifier;
+ConVar vehicle_enable_entry_exit_anims;
+ConVar vehicle_enable_horns;
 
 GlobalForward g_ForwardOnVehicleSpawned;
 GlobalForward g_ForwardOnVehicleDestroyed;
@@ -180,7 +179,6 @@ ArrayList g_VehicleProperties;
 char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
-bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 
 methodmap Vehicle
@@ -231,9 +229,9 @@ methodmap Vehicle
 
 public Plugin myinfo = 
 {
-	name = "Driveable Vehicles for Team Fortress 2", 
+	name = "Driveable Vehicles", 
 	author = PLUGIN_AUTHOR, 
-	description = "Fully functioning driveable vehicles for Team Fortress 2", 
+	description = "Fully functioning driveable vehicles", 
 	version = PLUGIN_VERSION, 
 	url = PLUGIN_URL
 }
@@ -244,9 +242,6 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	if (GetEngineVersion() != Engine_TF2)
-		SetFailState("This plugin is only compatible with Team Fortress 2");
-	
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
 	
@@ -265,13 +260,12 @@ public void OnPluginStart()
 	}
 	
 	//Create plugin convars
-	tf_vehicle_config = CreateConVar("tf_vehicle_config", "configs/vehicles/vehicles.cfg", "Configuration file to read all vehicles from, relative to the SourceMod folder");
-	tf_vehicle_config.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
-	tf_vehicle_physics_damage_modifier = CreateConVar("tf_vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
-	tf_vehicle_passenger_damage_modifier = CreateConVar("tf_vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
-	tf_vehicle_voicemenu_use = CreateConVar("tf_vehicle_voicemenu_use", "1", "Allow the 'MEDIC!' voice menu command to call +use");
-	tf_vehicle_enable_entry_exit_anims = CreateConVar("tf_vehicle_enable_entry_exit_anims", "0", "Enable entry and exit animations (experimental)");
-	tf_vehicle_allow_horns = CreateConVar("tf_vehicle_allow_horns", "1", "Allow players to use vehicle horns");
+	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder");
+	vehicle_config_path.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
+	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
+	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
+	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
+	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -281,8 +275,6 @@ public void OnPluginStart()
 	RegAdminCmd("sm_removevehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_removeallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
-	
-	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
 	Vehicle.InitializePropertyList();
 	
@@ -368,13 +360,12 @@ public void OnClientPutInServer(int client)
 {
 	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
-	g_ClientInUse[client] = false;
 	g_ClientIsUsingHorn[client] = false;
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
-	if (tf_vehicle_allow_horns.BoolValue)
+	if (vehicle_enable_horns.BoolValue)
 	{
 		int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
 		if (vehicle != -1)
@@ -397,13 +388,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
-	}
-	
-	if (g_ClientInUse[client])
-	{
-		g_ClientInUse[client] = !g_ClientInUse[client];
-		buttons |= IN_USE;
-		return Plugin_Changed;
 	}
 	
 	return Plugin_Continue;
@@ -576,7 +560,7 @@ void ReadVehicleConfig()
 	
 	//Build path to config file
 	char file[PLATFORM_MAX_PATH], path[PLATFORM_MAX_PATH];
-	tf_vehicle_config.GetString(file, sizeof(file));
+	vehicle_config_path.GetString(file, sizeof(file));
 	BuildPath(Path_SM, path, sizeof(path), file);
 	
 	//Read the vehicle configuration
@@ -809,21 +793,6 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 // Commands
 //-----------------------------------------------------------------------------
 
-public Action CommandListener_VoiceMenu(int client, const char[] command, int args)
-{
-	if (tf_vehicle_voicemenu_use.BoolValue)
-	{
-		char arg1[2], arg2[2];
-		GetCmdArg(1, arg1, sizeof(arg1));
-		GetCmdArg(2, arg2, sizeof(arg2));
-		
-		if (arg1[0] == '0' && arg2[0] == '0')	//MEDIC!
-		{
-			g_ClientInUse[client] = true;
-		}
-	}
-}
-
 public Action ConCmd_OpenVehicleMenu(int client, int args)
 {
 	if (client == 0)
@@ -932,7 +901,7 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 		int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
 		if (driver != -1 && victim != driver)
 		{
-			damage *= tf_vehicle_physics_damage_modifier.FloatValue;
+			damage *= vehicle_physics_damage_modifier.FloatValue;
 			attacker = driver;
 			return Plugin_Changed;
 		}
@@ -974,7 +943,7 @@ public Action PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int 
 			return Plugin_Continue;
 		
 		//Scale the damage
-		SDKHooks_TakeDamage(client, inflictor, attacker, damage * tf_vehicle_passenger_damage_modifier.FloatValue, damagetype | DMG_VEHICLE, weapon, damageForce, damagePosition);
+		SDKHooks_TakeDamage(client, inflictor, attacker, damage * vehicle_passenger_damage_modifier.FloatValue, damagetype | DMG_VEHICLE, weapon, damageForce, damagePosition);
 	}
 	
 	return Plugin_Continue;
@@ -1254,7 +1223,7 @@ public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DH
 
 public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, DHookParam params)
 {
-	if (!tf_vehicle_enable_entry_exit_anims.BoolValue)
+	if (!vehicle_enable_entry_exit_anims.BoolValue)
 	{
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
@@ -1282,7 +1251,7 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 
 public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHookReturn ret)
 {
-	if (!tf_vehicle_enable_entry_exit_anims.BoolValue)
+	if (!vehicle_enable_entry_exit_anims.BoolValue)
 	{
 		ret.Value = ACTIVITY_NOT_AVAILABLE;
 		return MRES_Override;
