@@ -57,9 +57,9 @@ methodmap Vehicle
 	 * @param angles	Angles to spawn vehicle at.
 	 * @param owner		The owner entity of this vehicle.
 	 *
-	 * @return			The vehicle.
+	 * @return			Entity index of the vehicle.
 	 */
-	public static native Vehicle Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
+	public static native int Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
 	
 	/**
 	 * Forces a client into this vehicle.

@@ -447,11 +447,11 @@ int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int ow
 		{
 			AcceptEntityInput(vehicle, "HandBrakeOn");
 			
-			return EntIndexToEntRef(vehicle);
+			return vehicle;
 		}
 	}
 	
-	return INVALID_ENT_REFERENCE;
+	return -1;
 }
 
 bool TeleportEntityToClientViewPos(int entity, int client, int mask)
@@ -702,9 +702,9 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 		int owner = GetNativeCell(4);
 		
 		int vehicle = CreateVehicle(config, origin, angles, owner);
-		if (vehicle != INVALID_ENT_REFERENCE)
+		if (vehicle != -1)
 		{
-			return EntRefToEntIndex(vehicle);
+			return vehicle;
 		}
 		else
 		{
@@ -830,7 +830,7 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	}
 	
 	int vehicle = CreateVehicle(config, NULL_VECTOR, NULL_VECTOR, client);
-	if (vehicle == INVALID_ENT_REFERENCE)
+	if (vehicle == -1)
 	{
 		LogError("Failed to create vehicle: %s", id);
 		return Plugin_Handled;
