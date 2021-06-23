@@ -149,20 +149,6 @@
 					}
 				}
 			}
-			"CBaseServerVehicle::HandlePassengerExit"
-			{
-				"offset"	"CBaseServerVehicle::HandlePassengerEntry"
-				"hooktype"	"raw"
-				"return"	"bool"
-				"this"		"address"
-				"arguments"
-				{
-					"pPassenger"
-					{
-						"type"	"cbaseentity"
-					}
-				}
-			}
 			"CBaseServerVehicle::GetExitAnimToUse"
 			{
 				"offset"	"CBaseServerVehicle::GetExitAnimToUse"
