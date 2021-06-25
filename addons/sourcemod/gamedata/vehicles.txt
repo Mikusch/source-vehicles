@@ -25,6 +25,11 @@
 				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEPKcR6VectorR6QAngle"
 				//FIXME: The signature for CBaseAnimating::GetAttachmentLocal is inlined on Windows
 			}
+			"CBaseAnimating::SetPoseParameter"
+			{
+				"windows"	"\x55\x8B\xEC\x8B\x45\x08\xD9\x45\x10"
+				"linux"		"@_ZN14CBaseAnimating16SetPoseParameterEP10CStudioHdrif"
+			}
 		}
 		
 		"Offsets"
@@ -96,6 +101,28 @@
 					"move"
 					{
 						"type"	"int"
+					}
+				}
+			}
+			"CBaseAnimating::SetPoseParameter"
+			{
+				"signature"	"CBaseAnimating::SetPoseParameter"
+				"callconv"	"thiscall"
+				"return"	"float"
+				"this"		"entity"
+				"arguments"
+				{
+					"pStudioHdr"
+					{
+						"type"	"int"
+					}
+					"iParameter"
+					{
+						"type"	"int"
+					}
+					"flValue"
+					{
+						"type"	"float"
 					}
 				}
 			}

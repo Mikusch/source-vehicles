@@ -152,6 +152,7 @@ ConVar vehicle_physics_damage_modifier;
 ConVar vehicle_passenger_damage_modifier;
 ConVar vehicle_enable_entry_exit_anims;
 ConVar vehicle_enable_horns;
+ConVar vehicle_processing_max_batch_size;
 
 GlobalForward g_ForwardOnVehicleSpawned;
 GlobalForward g_ForwardOnVehicleDestroyed;
@@ -173,6 +174,7 @@ Handle g_SDKCallHandleEntryExitFinish;
 Handle g_SDKCallStudioFrameAdvance;
 Handle g_SDKCallGetInVehicle;
 
+ArrayList g_VehicleEntities;
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
 
@@ -266,6 +268,7 @@ public void OnPluginStart()
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
+	vehicle_processing_max_batch_size = CreateConVar("vehicle_processing_max_batch_size", "10", "Pose param processing batch size. Lower batch size = laggier animations with more vehicles but smoother server performance");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
@@ -278,6 +281,8 @@ public void OnPluginStart()
 	
 	Vehicle.InitializePropertyList();
 	
+	g_VehicleEntities = new ArrayList();
+	
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	
 	GameData gamedata = new GameData("vehicles");
@@ -285,6 +290,7 @@ public void OnPluginStart()
 		SetFailState("Could not find vehicles gamedata");
 	
 	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
+	CreateDynamicDetour(gamedata, "CBaseAnimating::SetPoseParameter", DHookCallback_SetPoseParameter);
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
@@ -343,6 +349,8 @@ public void OnMapStart()
 	int vehicle;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
+		g_VehicleEntities.Push(vehicle);
+		
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(vehicle, SDKHook_Use, PropVehicleDriveable_Use);
 		SDKHook(vehicle, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
@@ -397,6 +405,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (StrEqual(classname, VEHICLE_CLASSNAME))
 	{
+		g_VehicleEntities.Push(entity);
+		
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
 		SDKHook(entity, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
@@ -412,6 +422,10 @@ public void OnEntityDestroyed(int entity)
 	
 	if (IsEntityVehicle(entity))
 	{
+		int index = g_VehicleEntities.FindValue(entity);
+		if (index != -1)
+			g_VehicleEntities.Erase(index);
+		
 		Forward_OnVehicleDestroyed(entity);
 		
 		Vehicle(entity).Destroy();
@@ -1180,6 +1194,40 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 		Address move = params.Get(4);
 		
 		SDKCall_VehicleSetupMove(GetServerVehicle(vehicle), client, ucmd, helper, move);
+	}
+}
+
+public MRESReturn DHookCallback_SetPoseParameter(int vehicle, DHookReturn ret, DHookParam params)
+{
+	if (!IsEntityVehicle(vehicle))
+		return MRES_Ignored;
+	
+	//Only group vehicles if we can fill the maximum batch size at least once
+	float ratio = g_VehicleEntities.Length / vehicle_processing_max_batch_size.FloatValue;
+	if (ratio <= 1.0)
+		return MRES_Ignored;
+	
+	//Make sure that we create batches with an equal amount of vehicles in them,
+	//so that 9 vehicles with a batch size of 4 will actually be batched up as [3,3,3] instead of [4,4,1]
+	//This is important to keep it equal and avoid network spikes
+	float batchSize = float(g_VehicleEntities.Length) / RoundToCeil(ratio);
+	float batchCount = g_VehicleEntities.Length / batchSize;
+	
+	//Limit amount of vehicles being processed to a range based on the current tick
+	int index = g_VehicleEntities.FindValue(vehicle);
+	int start = RoundToCeil(batchSize) * (GetGameTickCount() % RoundToCeil(batchCount));
+	int end = start + RoundToCeil(batchSize);
+	
+	if (start <= index < end)
+	{
+		//Vehicle is allowed to set pose parameters
+		return MRES_Ignored;
+	}
+	else
+	{
+		//Vehicle may not set pose parameters
+		ret.Value = params.Get(3);
+		return MRES_Supercede;
 	}
 }
 
