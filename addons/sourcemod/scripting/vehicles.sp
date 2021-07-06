@@ -364,7 +364,7 @@ public void OnLibraryRemoved(const char[] name)
 {
 	if (StrEqual(name, "LoadSoundscript"))
 	{
-		g_LoadSoundscript = true;
+		g_LoadSoundscript = false;
 	}
 }
 
