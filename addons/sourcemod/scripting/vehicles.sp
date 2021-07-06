@@ -132,6 +132,7 @@ enum struct VehicleConfig
 					char soundname[256];
 					entry.GetName(soundname, sizeof(soundname));
 					PrecacheScriptSound(soundname);
+					AddScriptSoundToDownloadsTable(soundname);
 				}
 #else
 				LogMessage("Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.soundscript);
