@@ -125,7 +125,14 @@ enum struct VehicleConfig
 			if (g_LoadSoundscript)
 			{
 #if defined _loadsoundscript_included
-				LoadSoundScript(this.soundscript);
+				SoundScript soundscript = LoadSoundScript(this.soundscript);
+				for (int i = 0; i < soundscript.Count; i++)
+				{
+					SoundEntry entry = soundscript.GetSound(i);
+					char soundname[256];
+					entry.GetName(soundname, sizeof(soundname));
+					PrecacheScriptSound(soundname);
+				}
 #else
 				LogMessage("Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.soundscript);
 #endif
