@@ -139,7 +139,7 @@ enum struct VehicleConfig
 			}
 			else
 			{
-				LogMessage("Failed to load vehicle soundscript '%s' because the LoadSoundscript extension extension could not be found", this.soundscript);
+				LogMessage("Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.soundscript);
 			}
 		}
 		
