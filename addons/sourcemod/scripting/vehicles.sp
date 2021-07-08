@@ -92,7 +92,7 @@ enum struct VehicleConfig
 	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
 	char script[PLATFORM_MAX_PATH];			/**< Vehicle script path */
 	VehicleType type;						/**< The type of vehicle */
-	char soundscript[PLATFORM_MAX_PATH];	/**< The soundscript associated with this vehicle */
+	char soundscript[PLATFORM_MAX_PATH];	/**< Custom soundscript */
 	ArrayList skins;						/**< Model skins */
 	char key_hint[256];						/**< Vehicle key hint */
 	float lock_speed;						/**< Vehicle lock speed */
