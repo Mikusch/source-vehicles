@@ -26,7 +26,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"2.0.1"
+#define PLUGIN_VERSION	"2.1.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -49,18 +49,55 @@ enum VehicleType
 	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3)
 }
 
+bool g_LoadSoundscript;
+
+ConVar vehicle_config_path;
+ConVar vehicle_physics_damage_modifier;
+ConVar vehicle_passenger_damage_modifier;
+ConVar vehicle_enable_entry_exit_anims;
+ConVar vehicle_enable_horns;
+
+GlobalForward g_ForwardOnVehicleSpawned;
+GlobalForward g_ForwardOnVehicleDestroyed;
+
+DynamicHook g_DHookSetPassenger;
+DynamicHook g_DHookIsPassengerVisible;
+DynamicHook g_DHookHandlePassengerEntry;
+DynamicHook g_DHookGetExitAnimToUse;
+DynamicHook g_DHookGetInVehicle;
+DynamicHook g_DHookLeaveVehicle;
+
+Handle g_SDKCallVehicleSetupMove;
+Handle g_SDKCallCanEnterVehicle;
+Handle g_SDKCallGetAttachmentLocal;
+Handle g_SDKCallGetVehicleEnt;
+Handle g_SDKCallHandlePassengerEntry;
+Handle g_SDKCallHandlePassengerExit;
+Handle g_SDKCallHandleEntryExitFinish;
+Handle g_SDKCallStudioFrameAdvance;
+Handle g_SDKCallGetInVehicle;
+
+ArrayList g_AllVehicles;
+ArrayList g_VehicleProperties;
+
+char g_OldAllowPlayerUse[8];
+char g_OldTurboPhysics[8];
+
+bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
+
 enum struct VehicleConfig
 {
-	char id[256];						/**< Unique identifier of the vehicle */
-	char name[256];						/**< Display name of the vehicle */
-	char model[PLATFORM_MAX_PATH];		/**< Vehicle model */
-	char script[PLATFORM_MAX_PATH];		/**< Vehicle script path */
-	VehicleType type;					/**< The type of vehicle */
-	ArrayList skins;					/**< Model skins */
-	char key_hint[256];					/**< Vehicle key hint */
-	float lock_speed;					/**< Vehicle lock speed */
-	bool is_passenger_visible;			/**< Whether the passenger is visible */
-	char horn_sound[PLATFORM_MAX_PATH];	/**< Custom horn sound */
+	char id[256];							/**< Unique identifier of the vehicle */
+	char name[256];							/**< Display name of the vehicle */
+	char model[PLATFORM_MAX_PATH];			/**< Vehicle model */
+	char script[PLATFORM_MAX_PATH];			/**< Vehicle script path */
+	VehicleType type;						/**< The type of vehicle */
+	char soundscript[PLATFORM_MAX_PATH];	/**< Custom soundscript */
+	ArrayList skins;						/**< Model skins */
+	char key_hint[256];						/**< Vehicle key hint */
+	float lock_speed;						/**< Vehicle lock speed */
+	bool is_passenger_visible;				/**< Whether the passenger is visible */
+	char horn_sound[PLATFORM_MAX_PATH];		/**< Custom horn sound */
 	
 	void ReadConfig(KeyValues kv)
 	{
@@ -81,6 +118,30 @@ enum struct VehicleConfig
 			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
 		else if (type[0] != '\0')
 			LogError("Invalid vehicle type '%s'", type);
+		
+		kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH, this.soundscript);
+		if (this.soundscript[0] != '\0')
+		{
+			if (g_LoadSoundscript)
+			{
+#if defined _loadsoundscript_included
+				SoundScript soundscript = LoadSoundScript(this.soundscript);
+				for (int i = 0; i < soundscript.Count; i++)
+				{
+					SoundEntry entry = soundscript.GetSound(i);
+					char soundname[256];
+					entry.GetName(soundname, sizeof(soundname));
+					PrecacheScriptSound(soundname);
+				}
+#else
+				LogMessage("Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.soundscript);
+#endif
+			}
+			else
+			{
+				LogMessage("Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.soundscript);
+			}
+		}
 		
 		this.skins = new ArrayList();
 		
@@ -147,40 +208,6 @@ enum struct VehicleProperties
 	}
 }
 
-ConVar vehicle_config_path;
-ConVar vehicle_physics_damage_modifier;
-ConVar vehicle_passenger_damage_modifier;
-ConVar vehicle_enable_entry_exit_anims;
-ConVar vehicle_enable_horns;
-
-GlobalForward g_ForwardOnVehicleSpawned;
-GlobalForward g_ForwardOnVehicleDestroyed;
-
-DynamicHook g_DHookSetPassenger;
-DynamicHook g_DHookIsPassengerVisible;
-DynamicHook g_DHookHandlePassengerEntry;
-DynamicHook g_DHookGetExitAnimToUse;
-DynamicHook g_DHookGetInVehicle;
-DynamicHook g_DHookLeaveVehicle;
-
-Handle g_SDKCallVehicleSetupMove;
-Handle g_SDKCallCanEnterVehicle;
-Handle g_SDKCallGetAttachmentLocal;
-Handle g_SDKCallGetVehicleEnt;
-Handle g_SDKCallHandlePassengerEntry;
-Handle g_SDKCallHandlePassengerExit;
-Handle g_SDKCallHandleEntryExitFinish;
-Handle g_SDKCallStudioFrameAdvance;
-Handle g_SDKCallGetInVehicle;
-
-ArrayList g_AllVehicles;
-ArrayList g_VehicleProperties;
-
-char g_OldAllowPlayerUse[8];
-char g_OldTurboPhysics[8];
-
-bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
-
 methodmap Vehicle
 {
 	public Vehicle(int entity)
@@ -244,20 +271,6 @@ public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
-	
-	//Load common vehicle sounds
-	if (LibraryExists("LoadSoundscript"))
-	{
-#if defined _loadsoundscript_included
-		LoadSoundScript("scripts/game_sounds_vehicles.txt");
-#else
-		LogMessage("LoadSoundscript extension was found but plugin was compiled without support for it, vehicles won't have sounds");
-#endif
-	} 
-	else
-	{
-		LogMessage("LoadSoundScript extension could not be found, vehicles won't have sounds");
-	}
 	
 	//Create plugin convars
 	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder");
@@ -332,6 +345,27 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
 	
 	MarkNativeAsOptional("LoadSoundScript");
+}
+
+public void OnAllPluginsLoaded()
+{
+	g_LoadSoundscript = LibraryExists("LoadSoundscript");
+}
+
+public void OnLibraryAdded(const char[] name)
+{
+	if (StrEqual(name, "LoadSoundscript"))
+	{
+		g_LoadSoundscript = true;
+	}
+}
+
+public void OnLibraryRemoved(const char[] name)
+{
+	if (StrEqual(name, "LoadSoundscript"))
+	{
+		g_LoadSoundscript = false;
+	}
 }
 
 public void OnMapStart()
