@@ -87,6 +87,7 @@ ArrayList g_VehicleProperties;
 char g_OldAllowPlayerUse[8];
 char g_OldTurboPhysics[8];
 
+bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
 
 enum struct VehicleConfig
@@ -293,6 +294,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_removeallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	
+	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
+	
 	Vehicle.InitializePropertyList();
 	
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
@@ -406,6 +409,13 @@ public void OnClientPutInServer(int client)
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
+	if (g_ClientInUse[client])
+	{
+		g_ClientInUse[client] = !g_ClientInUse[client];
+		buttons |= IN_USE;
+		return Plugin_Changed;
+	}
+	
 	if (vehicle_enable_horns.BoolValue)
 	{
 		int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
@@ -938,6 +948,21 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action CommandListener_VoiceMenu(int client, const char[] command, int args)
+{
+	char arg1[2], arg2[2];
+	GetCmdArg(1, arg1, sizeof(arg1));
+	GetCmdArg(2, arg2, sizeof(arg2));
+	
+	if (GetEngineVersion() == Engine_TF2)
+	{
+		if (arg1[0] == '0' && arg2[0] == '0')	//MEDIC!
+		{
+			g_ClientInUse[client] = true;
+		}
+	}
+}
+
 //-----------------------------------------------------------------------------
 // SDKHooks
 //-----------------------------------------------------------------------------
@@ -1179,7 +1204,7 @@ void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback cal
 	}
 	else
 	{
-		LogError("Failed to create detour setup handle for %s", name);
+		LogError("Failed to create detour setup handle: %s", name);
 	}
 }
 
@@ -1187,7 +1212,7 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 {
 	DynamicHook hook = DynamicHook.FromConf(gamedata, name);
 	if (hook == null)
-		LogError("Failed to create hook setup handle for %s", name);
+		LogError("Failed to create hook setup handle: %s", name);
 	
 	return hook;
 }
