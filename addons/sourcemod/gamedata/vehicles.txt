@@ -6,6 +6,7 @@
 		{
 			"game"	"tf"
 			"game"	"cstrike"
+			"game"	"bms"
 		}
 		
 		"Signatures"
@@ -246,6 +247,28 @@
 			{
 				"linux"		"395"
 				"windows"	"394"
+			}
+		}
+	}
+    
+    	"bms"
+	{
+		"Offsets"
+		{
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"206"
+				"windows"	"205"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"413"
+				"windows"	"412"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"414"
+				"windows"	"413"
 			}
 		}
 	}
