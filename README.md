@@ -7,6 +7,7 @@ multiplayer games.
 
 * Team Fortress 2
 * Counter-Strike: Source
+* Black Mesa
 
 While this has been done before, the implementation of this plugin is vastly different. Instead of simulating user input
 on the vehicle through the entity inputs, it forwards your user input directly to the vehicle, making driving feel
