@@ -26,11 +26,14 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"2.1.0"
+#define PLUGIN_VERSION	"2.2.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
 #define VEHICLE_CLASSNAME	"prop_vehicle_driveable"
+
+#define COLLISION_GROUP_VEHICLE			7
+#define TFCOLLISION_GROUP_RESPAWNROOMS	25
 
 #define ACTIVITY_NOT_AVAILABLE	-1
 
@@ -60,6 +63,7 @@ ConVar vehicle_enable_horns;
 GlobalForward g_ForwardOnVehicleSpawned;
 GlobalForward g_ForwardOnVehicleDestroyed;
 
+DynamicHook g_DHookShouldCollide;
 DynamicHook g_DHookSetPassenger;
 DynamicHook g_DHookIsPassengerVisible;
 DynamicHook g_DHookHandlePassengerEntry;
@@ -298,6 +302,7 @@ public void OnPluginStart()
 		SetFailState("Could not find vehicles gamedata");
 	
 	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
+	g_DHookShouldCollide = CreateDynamicHook(gamedata, "CGameRules::ShouldCollide");
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
@@ -373,8 +378,10 @@ public void OnMapStart()
 	SetupConVar("tf_allow_player_use", g_OldAllowPlayerUse, sizeof(g_OldAllowPlayerUse), "1");
 	SetupConVar("sv_turbophysics", g_OldTurboPhysics, sizeof(g_OldTurboPhysics), "0");
 	
+	DHookGamerulesObject();
+	
 	//Hook all vehicles
-	int vehicle;
+	int vehicle = MaxClients + 1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
 		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
@@ -532,6 +539,13 @@ void ShowKeyHintText(int client, const char[] format, any...)
 	bf.WriteByte(1);	//One message
 	bf.WriteString(buffer);
 	EndMessage();
+}
+
+void V_swap(int &x, int &y)
+{
+	int temp = x;
+	x = y;
+	y = temp;
 }
 
 bool IsEntityVehicle(int entity)
@@ -966,6 +980,16 @@ public void PropVehicleDriveable_Think(int vehicle)
 	}
 }
 
+public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
+{
+	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
+	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
+	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 public Action PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 {
 	//Make the driver take the damage
@@ -1016,16 +1040,6 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	}
 	
 	Forward_OnVehicleSpawned(vehicle);
-}
-
-public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
-{
-	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
-	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
-		return Plugin_Handled;
-	
-	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
@@ -1178,6 +1192,12 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 	return hook;
 }
 
+void DHookGamerulesObject()
+{
+	if (g_DHookShouldCollide != null)
+		g_DHookShouldCollide.HookGamerules(Hook_Post, DHookCallback_ShouldCollide);
+}
+
 void DHookClient(int client)
 {
 	if (g_DHookGetInVehicle != null)
@@ -1215,6 +1235,30 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 		
 		SDKCall_VehicleSetupMove(GetServerVehicle(vehicle), client, ucmd, helper, move);
 	}
+}
+
+public MRESReturn DHookCallback_ShouldCollide(DHookReturn ret, DHookParam params)
+{
+	int collisionGroup0 = params.Get(1);
+	int collisionGroup1 = params.Get(2);
+	
+	if (collisionGroup0 > collisionGroup1)
+	{
+		//Swap so that lowest is always first
+		V_swap(collisionGroup0, collisionGroup1);
+	}
+	
+	if (GetEngineVersion() == Engine_TF2)
+	{
+		//Prevent vehicles from entering respawn rooms
+		if (collisionGroup1 == TFCOLLISION_GROUP_RESPAWNROOMS)
+		{
+			ret.Value = (collisionGroup0 == COLLISION_GROUP_VEHICLE);
+			return MRES_Supercede;
+		}
+	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookParam params)
