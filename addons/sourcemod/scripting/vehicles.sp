@@ -1278,7 +1278,7 @@ public MRESReturn DHookCallback_ShouldCollide(DHookReturn ret, DHookParam params
 		//Prevent vehicles from entering respawn rooms
 		if (collisionGroup1 == TFCOLLISION_GROUP_RESPAWNROOMS)
 		{
-			ret.Value = (collisionGroup0 == COLLISION_GROUP_VEHICLE);
+			ret.Value = ret.Value || (collisionGroup0 == COLLISION_GROUP_VEHICLE);
 			return MRES_Supercede;
 		}
 	}
