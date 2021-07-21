@@ -11,25 +11,20 @@
 		
 		"Signatures"
 		{
-			"CPlayerMove::SetupMove"
-			{
-				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x60\x53\x56\x8B\x75\x14"
-			}
 			"CBasePlayer::CanEnterVehicle"
 			{
 				"linux"		"@_ZN11CBasePlayer15CanEnterVehicleEP14IServerVehiclei"
 				"windows"	"\x55\x8B\xEC\x56\x57\x8B\x7D\x08\x8B\xF1\xFF\x75\x0C"
 			}
-			"CBaseAnimating::GetAttachmentLocal"
-			{
-				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEPKcR6VectorR6QAngle"
-				//FIXME: The signature for CBaseAnimating::GetAttachmentLocal is inlined on Windows
-			}
 		}
 		
 		"Offsets"
 		{
+			"CGameRules::ShouldCollide"
+			{
+				"linux"		"30"
+				"windows"	"29"
+			}
 			"CBaseServerVehicle::SetupMove"
 			{
 				"linux"		"4"
@@ -95,6 +90,24 @@
 						"type"	"int"
 					}
 					"move"
+					{
+						"type"	"int"
+					}
+				}
+			}
+			"CGameRules::ShouldCollide"
+			{
+				"offset"	"CGameRules::ShouldCollide"
+				"hooktype"	"gamerules"
+				"return"	"bool"
+				"this"		"ignore"
+				"arguments"
+				{
+					"collisionGroup0"
+					{
+						"type"	"int"
+					}
+					"collisionGroup1"
 					{
 						"type"	"int"
 					}
@@ -207,8 +220,38 @@
 		}
 	}
 	
+	"#default"
+	{
+		"#supported"
+		{
+			"game"	"tf"
+			"game"	"cstrike"
+		}
+		"Signatures"
+		{
+			"CPlayerMove::SetupMove"
+			{
+				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x60\x53\x56\x8B\x75\x14"
+			}
+		}
+	}
+	
 	"tf"
 	{
+		"Signatures"
+		{
+			"CBaseAnimating::LookupAttachment"
+			{
+				"linux"		"@_ZN14CBaseAnimating16LookupAttachmentEPKc"
+				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x80\xBE\x41\x03\x00\x00\x00\x75\x2A\x83\xBE\x6C\x04\x00\x00\x00\x75\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8B\x86\x6C\x04\x00\x00\x85\xC0\x74\x2A\x83\x38\x00\x74\x2A\xFF\x75\x08\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x40"
+			}
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x53\x56\x8B\xF1"
+			}
+		}
 		"Offsets"
 		{
 			"CBaseAnimating::StudioFrameAdvance"
@@ -231,6 +274,19 @@
 	
 	"cstrike"
 	{
+		"Signatures"
+		{
+			"CBaseAnimating::LookupAttachment"
+			{
+				"linux"		"@_ZN14CBaseAnimating16LookupAttachmentEPKc"
+				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x80\xBE\x31\x03\x00\x00\x00\x75\x2A\x83\xBE\x50\x04\x00\x00\x00\x75\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8B\x86\x50\x04\x00\x00\x85\xC0\x74\x2A\x83\x38\x00\x74\x2A\xFF\x75\x08\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x40"
+			}
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x53\x56"
+			}
+		}
 		"Offsets"
 		{
 			"CBaseAnimating::StudioFrameAdvance"
@@ -253,6 +309,24 @@
 	
 	"bms"
 	{
+		"Signatures"
+		{
+			"CPlayerMove::SetupMove"
+			{
+				"linux"		"@_ZN11CPlayerMove9SetupMoveEP11CBasePlayerP8CUserCmdP11IMoveHelperP9CMoveData"
+				"windows"	"\x55\x8B\xEC\x57\x8B\xF9\x8B\x4D\x08\xE8\x2A\x2A\x2A\x2A\x8B\x55\x14"
+			}
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x98\x00\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x8B\x5D\x10"
+			}
+			"CBaseAnimating::LookupAttachment"
+			{
+				"linux"		"@_ZN14CBaseAnimating16LookupAttachmentEPKc"
+				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x80\xBE\x31\x03\x00\x00\x00\x75\x2A\x83\xBE\x74\x04\x00\x00\x00\x75\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8B\x86\x74\x04\x00\x00\x85\xC0\x74\x2A\x83\x38\x00\x74\x2A\xFF\x75\x08\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x40"
+			}
+		}
 		"Offsets"
 		{
 			"CBaseAnimating::StudioFrameAdvance"
