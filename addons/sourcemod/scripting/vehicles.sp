@@ -73,6 +73,7 @@ DynamicHook g_DHookLeaveVehicle;
 
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
+Handle g_SDKCallLookupAttachment;
 Handle g_SDKCallGetAttachmentLocal;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandlePassengerEntry;
@@ -315,6 +316,7 @@ public void OnPluginStart()
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
+	g_SDKCallLookupAttachment = PrepSDKCall_LookupAttachment(gamedata);
 	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandlePassengerEntry = PrepSDKCall_HandlePassengerEntry(gamedata);
@@ -1339,7 +1341,7 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 				
 				//Snap the driver's view where the vehicle is facing
 				float origin[3], angles[3];
-				if (SDKCall_GetAttachmentLocal(vehicle, "vehicle_driver_eyes", origin, angles))
+				if (SDKCall_GetAttachmentLocal(vehicle, SDKCall_LookupAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
 					TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
 				
 				CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
@@ -1412,11 +1414,25 @@ Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 	return call;
 }
 
+Handle PrepSDKCall_LookupAttachment(GameData gamedata)
+{
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBaseAnimating::LookupAttachment");
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+	
+	Handle call = EndPrepSDKCall();
+	if (call == null)
+		LogMessage("Failed to create SDK call: CBaseAnimating::LookupAttachment");
+	
+	return call;
+}
+
 Handle PrepSDKCall_GetAttachmentLocal(GameData gamedata)
 {
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBaseAnimating::GetAttachmentLocal");
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
 	PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
@@ -1524,10 +1540,18 @@ bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole ro
 	return false;
 }
 
-bool SDKCall_GetAttachmentLocal(int entity, const char[] name, float origin[3], float angles[3])
+int SDKCall_LookupAttachment(int entity, const char[] name)
+{
+	if (g_SDKCallLookupAttachment != null)
+		return SDKCall(g_SDKCallLookupAttachment, entity, name);
+	
+	return 0;
+}
+
+bool SDKCall_GetAttachmentLocal(int entity, int attachment, float origin[3], float angles[3])
 {
 	if (g_SDKCallGetAttachmentLocal != null)
-		return SDKCall(g_SDKCallGetAttachmentLocal, entity, name, origin, angles);
+		return SDKCall(g_SDKCallGetAttachmentLocal, entity, attachment, origin, angles);
 	
 	return false;
 }
