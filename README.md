@@ -42,7 +42,7 @@ If a configuration entry matches both the vehicle model and vehicle script, its 
 
 **Example:**
 
-`ent_create prop_vehicle_driveable model "models/models/buggy.mdl" VehicleScript "scripts/vehicles/jeep_test.txt"`
+`ent_create prop_vehicle_driveable model "models/buggy.mdl" VehicleScript "scripts/vehicles/jeep_test.txt"`
 
 To enter a vehicle, look at it and use the `+use` console command.
 
