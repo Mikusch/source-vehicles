@@ -9,10 +9,6 @@ multiplayer games.
 * Counter-Strike: Source
 * Black Mesa
 
-While this has been done before, the implementation of this plugin is vastly different. Instead of simulating user input
-on the vehicle through the entity inputs, it forwards your user input directly to the vehicle, making driving feel
-incredibly smooth.
-
 This plugin bundles the required entity fixes, and a few configurable nice-to-have features.
 
 ## Features
@@ -37,10 +33,16 @@ This plugin bundles the required entity fixes, and a few configurable nice-to-ha
 
 ## Usage
 
-There is a menu combining all the plugin's features that can be accessed using `sm_vehicle`.
+The easiest way to spawn vehicles is using the `sm_vehicle` command.
+This requires vehicles to be added to the [vehicle configuration](/addons/sourcemod/configs/vehicles/vehicles.cfg).
 
-Additionally, you may use `sm_createvehicle` to create and `sm_removevehicle` to remove a vehicle. To remove all
-vehicles in the map, use `sm_removeallvehicles`.
+If you have access to `ent_create`, you can spawn vehicle entities without having to add them to the configuration.
+The plugin automatically detects and hooks any vehicle spawned into the map.
+If a configuration entry matches both the vehicle model and vehicle script, its properties will be applied accordingly.
+
+**Example:**
+
+`ent_create prop_vehicle_driveable model "models/models/buggy.mdl" VehicleScript "scripts/vehicles/jeep_test.txt"`
 
 To enter a vehicle, look at it and use the `+use` console command.
 
@@ -95,13 +97,6 @@ The plugin creates the following console variables:
 * `vehicle_passenger_damage_modifier ( def. "1.0" )` - Modifier of damage dealt to vehicle passengers
 * `vehicle_enable_entry_exit_anims ( def. "0" )` - If set to 1, enables entry and exit animations (experimental)
 * `vehicle_enable_horns ( def. "1" )` - If set to 1, enables vehicle horns
-
-## Physics Damage
-
-This plugin will automatically enable physics collisions and damage to allow vehicles to collide with other players.
-
-If you intend to use these vehicles in a friendly environment without any combat aspects, set `sv_turbophysics` to `1`.
-It will allow vehicles to pass through other players.
 
 ## Entry and Exit Animations
 
