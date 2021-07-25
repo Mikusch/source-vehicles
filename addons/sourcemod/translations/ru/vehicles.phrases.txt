@@ -23,17 +23,17 @@
 	
 	"#Menu_Item_CreateVehicle"
 	{
-		"ru"	"Создать транспорт (!createvehicle)"
+		"ru"	"Создать транспорт"
 	}
 	
 	"#Menu_Item_DestroyVehicle"
 	{
-		"ru"	"Удалить транспорт (!removevehicle)"
+		"ru"	"Удалить транспорт"
 	}
 	
 	"#Menu_Item_DestroyAllVehicles"
 	{
-		"ru"	"Удалить весь созданный транспорт (!removeallvehicles)"
+		"ru"	"Удалить весь созданный транспорт"
 	}
 	
 	"#Command_CreateVehicle_Invalid"

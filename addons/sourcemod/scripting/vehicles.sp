@@ -287,13 +287,13 @@ public void OnPluginStart()
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_createvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_spawnvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_destroyvehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_removevehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_removeallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_menu", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_spawn", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_remove", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_destroy", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_removeall", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle_destroyall", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -1101,12 +1101,12 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 				}
 				else if (StrEqual(info, "vehicle_destroy"))
 				{
-					FakeClientCommand(param1, "sm_destroyvehicle");
+					FakeClientCommand(param1, "sm_vehicle_destroy");
 					DisplayMainVehicleMenu(param1);
 				}
 				else if (StrEqual(info, "vehicle_destroyall"))
 				{
-					FakeClientCommand(param1, "sm_destroyallvehicles");
+					FakeClientCommand(param1, "sm_vehicle_destroyall");
 					DisplayMainVehicleMenu(param1);
 				}
 			}
@@ -1158,7 +1158,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 			char info[32];
 			if (menu.GetItem(param2, info, sizeof(info)))
 			{
-				FakeClientCommand(param1, "sm_createvehicle %s", info);
+				FakeClientCommand(param1, "sm_vehicle_create %s", info);
 				DisplayVehicleCreateMenu(param1);
 			}
 		}

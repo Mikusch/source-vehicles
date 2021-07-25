@@ -23,17 +23,17 @@
 	
 	"#Menu_Item_CreateVehicle"
 	{
-		"en"	"Spawn vehicle (!createvehicle)"
+		"en"	"Create new vehicle"
 	}
 	
 	"#Menu_Item_DestroyVehicle"
 	{
-		"en"	"Remove vehicle (!removevehicle)"
+		"en"	"Remove vehicle at crosshair"
 	}
 	
 	"#Menu_Item_DestroyAllVehicles"
 	{
-		"en"	"Remove all vehicles (!removeallvehicles)"
+		"en"	"Remove all vehicles in the world"
 	}
 	
 	"#Command_CreateVehicle_Invalid"
