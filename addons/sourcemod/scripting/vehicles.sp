@@ -207,11 +207,6 @@ enum struct VehicleProperties
 {
 	int entity;
 	int owner;
-	
-	void Initialize(int entity)
-	{
-		this.entity = entity;
-	}
 }
 
 methodmap Vehicle
@@ -226,7 +221,7 @@ methodmap Vehicle
 		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
 		{
 			VehicleProperties properties;
-			properties.Initialize(entity);
+			properties.entity = entity;
 			
 			g_VehicleProperties.PushArray(properties);
 		}
@@ -286,14 +281,11 @@ public void OnPluginStart()
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
 	
-	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_menu", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_spawn", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_remove", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_destroy", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_removeall", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicle_destroyall", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
+	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
+	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
+	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
+	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -906,7 +898,55 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action ConCmd_DestroyVehicle(int client, int args)
+public Action ConCmd_RemovePlayerVehicles(int client, int args)
+{
+	if (args < 1)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_vehicle_remove <#userid|name>");
+		return Plugin_Handled;
+	}
+	
+	char arg[MAX_TARGET_LENGTH];
+	GetCmdArg(1, arg, sizeof(arg));
+	
+	char target_name[MAX_TARGET_LENGTH];
+	int target_list[MAXPLAYERS], target_count;
+	bool tn_is_ml;
+	
+	if ((target_count = ProcessTargetString(arg, client, target_list, MaxClients + 1, COMMAND_TARGET_NONE, target_name, sizeof(target_name), tn_is_ml)) <= 0)
+	{
+		ReplyToTargetError(client, target_count);
+		return Plugin_Handled;
+	}
+	
+	int vehicle = MaxClients + 1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		int owner = Vehicle(vehicle).Owner;
+		if (owner <= 0)
+			continue;
+		
+		for (int i = 0; i < target_count; i++)
+		{
+			int target = target_list[i];
+			if (owner == target)
+				RemoveEntity(vehicle);
+		}
+	}
+	
+	if (tn_is_ml)
+	{
+		ShowActivity2(client, "[SM] ", "%t", "#Command_RemovePlayerVehicles_Success", target_name);
+	}
+	else
+	{
+		ShowActivity2(client, "[SM] ", "%t", "#Command_RemovePlayerVehicles_Success", "_s", target_name);
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
 {
 	if (client == 0)
 	{
@@ -915,21 +955,28 @@ public Action ConCmd_DestroyVehicle(int client, int args)
 	}
 	
 	int entity = GetClientAimTarget(client, false);
-	
 	if (IsEntityVehicle(entity))
 	{
-		RemoveEntity(entity);
-		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
+		int owner = Vehicle(entity).Owner;
+		if (owner <= 0 || CanUserTarget(client, owner))
+		{
+			RemoveEntity(entity);
+			ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveVehicle_Success");
+		}
+		else
+		{
+			ReplyToCommand(client, "%t", "Unable to target");
+		}
 	}
 	else
 	{
-		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_NoVehicleFound");
+		ReplyToCommand(client, "%t", "#Command_RemoveVehicle_NoVehicleFound");
 	}
 	
 	return Plugin_Handled;
 }
 
-public Action ConCmd_DestroyAllVehicles(int client, int args)
+public Action ConCmd_RemoveAllVehicles(int client, int args)
 {
 	int vehicle = MaxClients + 1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
@@ -937,7 +984,7 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 		RemoveEntity(vehicle);
 	}
 	
-	ReplyToCommand(client, "%t", "#Command_DestroyAllVehicles_Success");
+	ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveAllVehicles_Success");
 	return Plugin_Handled;
 }
 
@@ -1068,12 +1115,20 @@ void DisplayMainVehicleMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
-	
-	menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
-	menu.AddItem("vehicle_destroy", "#Menu_Item_DestroyVehicle");
-	menu.AddItem("vehicle_destroyall", "#Menu_Item_DestroyAllVehicles");
-	
 	menu.ExitButton = true;
+	
+	if (CheckCommandAccess(client, "sm_vehicle_create", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_removeaim", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_removeaim", "#Menu_Item_RemoveAimTargetVehicle");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_remove", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_removemy", "#Menu_Item_RemoveMyVehicles");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
+	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -1090,14 +1145,19 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 				{
 					DisplayVehicleCreateMenu(param1);
 				}
-				else if (StrEqual(info, "vehicle_destroy"))
+				else if (StrEqual(info, "vehicle_removeaim"))
 				{
-					FakeClientCommand(param1, "sm_vehicle_destroy");
+					FakeClientCommand(param1, "sm_vehicle_removeaim");
 					DisplayMainVehicleMenu(param1);
 				}
-				else if (StrEqual(info, "vehicle_destroyall"))
+				else if (StrEqual(info, "vehicle_removemy"))
 				{
-					FakeClientCommand(param1, "sm_vehicle_destroyall");
+					FakeClientCommand(param1, "sm_vehicle_remove @me");
+					DisplayMainVehicleMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_removeall"))
+				{
+					FakeClientCommand(param1, "sm_vehicle_removeall");
 					DisplayMainVehicleMenu(param1);
 				}
 			}
@@ -1125,6 +1185,8 @@ void DisplayVehicleCreateMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_VehicleCreateMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
@@ -1135,8 +1197,6 @@ void DisplayVehicleCreateMenu(int client)
 		}
 	}
 	
-	menu.ExitButton = true;
-	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 

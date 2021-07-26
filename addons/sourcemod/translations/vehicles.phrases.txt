@@ -2,12 +2,12 @@
 {
 	"#Hint_VehicleKeys_Car"
 	{
-		"en"	"%%+speed%% TURBO %%+jump%% HANDBRAKE"
+		"en"		"%%+speed%% TURBO %%+jump%% HANDBRAKE"
 	}
 	
 	"#Hint_VehicleKeys_Airboat"
 	{
-		"en"	"%%+forward%% SPEED UP %%+back%% SLOW DOWN %%+moveleft%% TURN LEFT %%+moveright%% TURN RIGHT"
+		"en"		"%%+forward%% SPEED UP %%+back%% SLOW DOWN %%+moveleft%% TURN LEFT %%+moveright%% TURN RIGHT"
 	}
 	
 	"#Menu_Title_Main"
@@ -18,22 +18,27 @@
 	
 	"#Menu_Title_CreateVehicle"
 	{
-		"en"	"Select a vehicle to spawn"
+		"en"		"Select a vehicle to spawn"
 	}
 	
 	"#Menu_Item_CreateVehicle"
 	{
-		"en"	"Create new vehicle"
+		"en"		"Spawn new vehicle"
 	}
 	
-	"#Menu_Item_DestroyVehicle"
+	"#Menu_Item_RemoveAimTargetVehicle"
 	{
-		"en"	"Remove vehicle at crosshair"
+		"en"		"Remove vehicle at crosshair"
 	}
 	
-	"#Menu_Item_DestroyAllVehicles"
+	"#Menu_Item_RemoveMyVehicles"
 	{
-		"en"	"Remove all vehicles in the world"
+		"en"		"Remove your vehicles"
+	}
+	
+	"#Menu_Item_RemoveAllVehicles"
+	{
+		"en"		"Remove all vehicles"
 	}
 	
 	"#Command_CreateVehicle_Invalid"
@@ -42,28 +47,34 @@
 		"en"		"Invalid or unknown vehicle: {1}"
 	}
 	
-	"#Command_DestroyVehicle_Success"
+	"#Command_RemoveVehicle_Success"
 	{
-		"en"	"Successfully removed the vehicle at your crosshair."
+		"en"		"Removed the vehicle at their crosshair."
 	}
 	
-	"#Command_DestroyVehicle_NoVehicleFound"
+	"#Command_RemoveVehicle_NoVehicleFound"
 	{
-		"en"	"Not looking at any valid vehicle to remove."
+		"en"		"Not looking at any valid vehicle to remove."
 	}
 	
-	"#Command_DestroyAllVehicles_Success"
+	"#Command_RemovePlayerVehicles_Success"
 	{
-		"en"	"Successfully removed all vehicles in the map."
+		"#format"	"{1:t}"
+		"en"		"Removed all vehicles of {1}."
+	}
+	
+	"#Command_RemoveAllVehicles_Success"
+	{
+		"en"		"Removed all vehicles in the world."
 	}
 	
 	"#Vehicle_HL2_Jeep"
 	{
-		"en"	"Half-Life 2 Jeep"
+		"en"		"Half-Life 2 Jeep"
 	}
 	
 	"#Vehicle_HL2_Airboat"
 	{
-		"en"	"Half-Life 2 Airboat"
+		"en"		"Half-Life 2 Airboat"
 	}
 }

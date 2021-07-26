@@ -2,68 +2,79 @@
 {
 	"#Hint_VehicleKeys_Car"
 	{
-		"ru"	"%%+speed%% - ГАЗ %%+jump%% - РУЧНОЙ ТОРМОЗ"
+		"ru"		"%%+speed%% - ГАЗ %%+jump%% - РУЧНОЙ ТОРМОЗ"
 	}
 	
 	"#Hint_VehicleKeys_Airboat"
 	{
-		"ru"	"%%+forward%% УСКОРЕНИЕ %%+back%% ТОРМОЗ %%+moveleft%% НАЛЕВО %%+moveright%% НАПРАВО"
+		"ru"		"%%+forward%% УСКОРЕНИЕ %%+back%% ТОРМОЗ %%+moveleft%% НАЛЕВО %%+moveright%% НАПРАВО"
 	}
 	
 	"#Menu_Title_Main"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
-		"ru"		"Добро пожаловать в плагин транспорта {1} от {2}\n{3}"
+		"ru"		"Управляемый Транспорт {1} от {2}\n{3}"
 	}
 	
 	"#Menu_Title_CreateVehicle"
 	{
-		"ru"	"Выберите транспорт для создания"
+		"ru"		"Выберите транспортное средство"
 	}
 	
 	"#Menu_Item_CreateVehicle"
 	{
-		"ru"	"Создать транспорт"
+		"ru"		"Создать новое транспортное средств"
 	}
 	
-	"#Menu_Item_DestroyVehicle"
+	"#Menu_Item_RemoveAimTargetVehicle"
 	{
-		"ru"	"Удалить транспорт"
+		"ru"		"Удалить транспортное средство перед вашим прицелом"
 	}
 	
-	"#Menu_Item_DestroyAllVehicles"
+	"#Menu_Item_RemoveMyVehicles"
 	{
-		"ru"	"Удалить весь созданный транспорт"
+		"ru"		"Удалить все собственные транспортные средства"
+	}
+	
+	"#Menu_Item_RemoveAllVehicles"
+	{
+		"ru"		"Удалить все транспортные средства на сервере"
 	}
 	
 	"#Command_CreateVehicle_Invalid"
 	{
 		"#format"	"{1:s}"
-		"ru"		"Транспортное средство с названием \"{1}\" не найдено."
+		"ru"		"Транспортное средство с названием '{1}' не найдено."
 	}
 	
-	"#Command_DestroyVehicle_Success"
+	"#Command_RemoveVehicle_Success"
 	{
-		"ru"	"Транспортное средство у вашего прицела успешно удалено."
+		"ru"		"Транспортное средство перед вашим прицелом успешно удалено."
 	}
 	
-	"#Command_DestroyVehicle_NoVehicleFound"
+	"#Command_RemoveVehicle_NoVehicleFound"
 	{
-		"ru"	"Нет подходящего транспортного средства для удаления."
+		"ru"		"Перед вашим прицелом нет подходящего транспортного средства."
 	}
 	
-	"#Command_DestroyAllVehicles_Success"
+	"#Command_RemovePlayerVehicles_Success"
 	{
-		"ru"	"Успешно удалены все транспортные средства с карты."
+		"#format"	"{1:t}"
+		"ru"		"Все транспортные средства {1} успешно удалены."
+	}
+	
+	"#Command_RemoveAllVehicles_Success"
+	{
+		"ru"		"Все транспортные средства на сервере успешно удалены."
 	}
 	
 	"#Vehicle_HL2_Jeep"
 	{
-		"ru"	"Багги Half-Life 2"
+		"ru"		"Багги : Half-Life 2"
 	}
 	
 	"#Vehicle_HL2_Airboat"
 	{
-		"ru"	"Катер на воздушной подушке Half-Life 2"
+		"ru"		"Катер на воздушной подушке : Half-Life 2"
 	}
 }
