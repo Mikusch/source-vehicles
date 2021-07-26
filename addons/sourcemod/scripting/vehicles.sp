@@ -563,7 +563,7 @@ void V_swap(int &x, int &y)
 bool IsEntityVehicle(int entity)
 {
 	char classname[32];
-	return GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
+	return IsValidEntity(entity) && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
 }
 
 Address GetServerVehicle(int vehicle)
@@ -914,16 +914,7 @@ public Action ConCmd_DestroyVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	float origin[3], angles[3], end[3];
-	GetClientEyePosition(client, origin);
-	GetClientEyeAngles(client, angles);
-	
-	Handle trace = TR_TraceRayFilterEx(origin, angles, MASK_SOLID, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
-	TR_GetEndPosition(end, trace);
-	
-	int entity = TR_GetEntityIndex(trace);
-	
-	delete trace;
+	int entity = GetClientAimTarget(client, false);
 	
 	if (IsEntityVehicle(entity))
 	{
