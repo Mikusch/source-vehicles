@@ -553,6 +553,11 @@ void V_swap(int &x, int &y)
 	y = temp;
 }
 
+bool IsEntityClient(int client)
+{
+	return 0 < client <= MaxClients;
+}
+
 bool IsEntityVehicle(int entity)
 {
 	char classname[32];
@@ -929,7 +934,7 @@ public Action ConCmd_RemovePlayerVehicles(int client, int args)
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
 		int owner = Vehicle(vehicle).Owner;
-		if (owner <= 0)
+		if (!IsEntityClient(owner))
 			continue;
 		
 		for (int i = 0; i < target_count; i++)
@@ -964,7 +969,7 @@ public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
 	if (IsEntityVehicle(entity))
 	{
 		int owner = Vehicle(entity).Owner;
-		if (owner <= 0 || CanUserTarget(client, owner))
+		if (!IsEntityClient(owner) || CanUserTarget(client, owner))
 		{
 			RemoveEntity(entity);
 			ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveVehicle_Success");
