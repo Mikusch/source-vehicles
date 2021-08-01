@@ -755,7 +755,7 @@ public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 	if (!IsEntityVehicle(vehicle))
 		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
 	
-	if (client < 1 || client > MaxClients)
+	if (!IsEntityClient(client))
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %d", client);
 	
 	if (!IsClientInGame(client))
@@ -1056,7 +1056,7 @@ public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, U
 {
 	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
 	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
+	if (IsEntityClient(activator) && driver != -1 && driver == activator)
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
