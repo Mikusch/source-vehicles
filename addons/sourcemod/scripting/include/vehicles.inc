@@ -28,6 +28,17 @@ methodmap Vehicle
 	}
 	
 	/**
+	 * Creates and spawns a new vehicle matching the given identifier.
+	 *
+	 * @param id			Identifier of the vehicle, as defined in the configuration.
+	 * @param origin		Origin to spawn vehicle at.
+	 * @param angles		Angles to spawn vehicle at.
+	 * @param owner			Owner entity of this vehicle.
+	 * @return				Entity index of the vehicle.
+	 */
+	public static native int Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
+	
+	/**
 	 * The owner entity of this vehicle.
 	 *
 	 * This property is an alternative to m_hOwnerEntity that still allows the owner to collide with the vehicle.
@@ -63,27 +74,6 @@ methodmap Vehicle
 }
 
 /**
- * Creates and spawns a new vehicle matching the given identifier.
- *
- * @param id			Identifier of the vehicle, as defined in the configuration.
- * @param origin		Origin to spawn vehicle at.
- * @param angles		Angles to spawn vehicle at.
- * @param owner			Owner entity of this vehicle.
- * @return				Entity index of the vehicle.
- */
-native int CreateVehicle(const char[] id, const float origin[3], const float angles[3], int owner = 0);
-
-/**
- * Retrieves the name of the vehicle with the given identifier.
- * 
- * @param id			Identifier of the vehicle, as defined in the configuration.
- * @param buffer		Buffer to store the name in.
- * @param maxlength		Maximum size of the buffer.
- * @return				True on success, false on failure.
- */
-native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
-
-/**
  * Called when a vehicle entity has spawned.
  *
  * @param vehicle		The vehicle entity.
@@ -99,6 +89,16 @@ forward void OnVehicleSpawned(int vehicle);
  */
 forward void OnVehicleDestroyed(int vehicle);
 
+/**
+ * Retrieves the name of the vehicle with the given identifier.
+ * 
+ * @param id			Identifier of the vehicle, as defined in the configuration.
+ * @param buffer		Buffer to store the name in.
+ * @param maxlength		Maximum size of the buffer.
+ * @return				True on success, false on failure.
+ */
+native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
+
 public SharedPlugin __pl_vehicles =
 {
 	name = "vehicles",
@@ -113,11 +113,12 @@ public SharedPlugin __pl_vehicles =
 #if !defined REQUIRE_PLUGIN
 public __pl_vehicles_SetNTVOptional()
 {
+	MarkNativeAsOptional("Vehicle.Create");
 	MarkNativeAsOptional("Vehicle.Owner.get");
 	MarkNativeAsOptional("Vehicle.Owner.set");
+	MarkNativeAsOptional("Vehicle.GetId");
 	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
 	MarkNativeAsOptional("Vehicle.ForcePlayerOut");
-	MarkNativeAsOptional("CreateVehicle");
 	MarkNativeAsOptional("GetVehicleName");
 }
 #endif
