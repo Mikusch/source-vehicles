@@ -339,9 +339,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	
 	CreateNative("Vehicle.Owner.get", NativeCall_VehicleOwnerGet);
 	CreateNative("Vehicle.Owner.set", NativeCall_VehicleOwnerSet);
-	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
 	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
+	CreateNative("CreateVehicle", NativeCall_CreateVehicle);
+	CreateNative("GetVehicleName", NativeCall_GetVehicleName);
 	
 	g_ForwardOnVehicleSpawned = new GlobalForward("OnVehicleSpawned", ET_Ignore, Param_Cell);
 	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
@@ -741,34 +742,6 @@ public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
 	return Vehicle(vehicle).Owner = owner;
 }
 
-public int NativeCall_VehicleCreate(Handle plugin, int numParams)
-{
-	VehicleConfig config;
-	
-	char id[256];
-	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
-	{
-		float origin[3], angles[3];
-		GetNativeArray(2, origin, sizeof(origin));
-		GetNativeArray(3, angles, sizeof(angles));
-		int owner = GetNativeCell(4);
-		
-		int vehicle = CreateVehicle(config, origin, angles, owner);
-		if (vehicle != -1)
-		{
-			return vehicle;
-		}
-		else
-		{
-			return ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
-		}
-	}
-	else
-	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
-	}
-}
-
 public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 {
 	int vehicle = GetNativeCell(1);
@@ -799,6 +772,39 @@ public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
 		return;
 	
 	SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), client);
+}
+
+public int NativeCall_CreateVehicle(Handle plugin, int numParams)
+{
+	VehicleConfig config;
+	
+	char id[256];
+	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
+	{
+		float origin[3], angles[3];
+		GetNativeArray(2, origin, sizeof(origin));
+		GetNativeArray(3, angles, sizeof(angles));
+		int owner = GetNativeCell(4);
+		
+		int vehicle = CreateVehicle(config, origin, angles, owner);
+		if (vehicle != -1)
+		{
+			return vehicle;
+		}
+		else
+		{
+			return ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
+		}
+	}
+	else
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+	}
+}
+
+public int NativeCall_GetVehicleName(Handle plugin, int numParams)
+{
+	//TODO
 }
 
 //-----------------------------------------------------------------------------

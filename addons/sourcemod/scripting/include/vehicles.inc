@@ -28,20 +28,9 @@ methodmap Vehicle
 	}
 	
 	/**
-	 * The entity index.
-	 */
-	property int Entity
-	{
-		public get()
-		{
-			return view_as<int>(this);
-		}
-	}
-	
-	/**
 	 * The owner entity of this vehicle.
 	 *
-	 * @note You should use this property over m_hOwnerEntity if you want the owner to collide with the vehicle.
+	 * This property is an alternative to m_hOwnerEntity that still allows the owner to collide with the vehicle.
 	 */
 	property int Owner
 	{
@@ -50,47 +39,63 @@ methodmap Vehicle
 	}
 	
 	/**
-	 * Creates a new vehicle and spawns it.
+	 * Retrieves the identifier of this vehicle.
 	 *
-	 * @param id		The identifier of the vehicle to spawn, as defined in the configuration.
-	 * @param origin	Origin to spawn vehicle at.
-	 * @param angles	Angles to spawn vehicle at.
-	 * @param owner		The owner entity of this vehicle.
+	 * The identifier is retrieved from the vehicle configuration using the vehicle model and the vehicle script.
 	 *
-	 * @return			Entity index of the vehicle.
+	 * @param buffer		Buffer to store the identifier in.
+	 * @param maxlength		Maximum size of the buffer.
+	 * @return				True on success, false on failure.
 	 */
-	public static native int Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
+	public native bool GetId(char[] buffer, int maxlength);
 	
 	/**
 	 * Forces a client into this vehicle.
 	 *
-	 * @param	Client index.
+	 * @param client		Client index.
 	 */
 	public native void ForcePlayerIn(int client);
 	
 	/**
-	 * Forces the driver out of this vehicle.
+	 * Forces the current driver out of this vehicle.
 	 */
 	public native void ForcePlayerOut();
 }
 
 /**
- * Called when a vehicle entity has been spawned and fully initialized.
+ * Creates and spawns a new vehicle matching the given identifier.
  *
- * @note It is safe to remove the entity in this forward.
+ * @param id			Identifier of the vehicle, as defined in the configuration.
+ * @param origin		Origin to spawn vehicle at.
+ * @param angles		Angles to spawn vehicle at.
+ * @param owner			Owner entity of this vehicle.
+ * @return				Entity index of the vehicle.
+ */
+native int CreateVehicle(const char[] id, const float origin[3], const float angles[3], int owner = 0);
+
+/**
+ * Retrieves the name of the vehicle with the given identifier.
+ * 
+ * @param id			Identifier of the vehicle, as defined in the configuration.
+ * @param buffer		Buffer to store the name in.
+ * @param maxlength		Maximum size of the buffer.
+ * @return				True on success, false on failure.
+ */
+native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
+
+/**
+ * Called when a vehicle entity has spawned.
  *
- * @param vehicle	The vehicle entity.
- * @error Invalid vehicle index.
+ * @param vehicle		The vehicle entity.
  */
 forward void OnVehicleSpawned(int vehicle);
 
 /**
- * Called when a vehicle entity is destroyed.
+ * Called when a vehicle entity is being destroyed.
  *
- * @note You should implement this forward over OnEntityDestroyed if you need to access the vehicle's properties.
+ * The vehicle properties can still be accessed in this forward.
  *
- * @param vehicle	The vehicle entity.
- * @error Invalid vehicle index.
+ * @param vehicle		The vehicle entity.
  */
 forward void OnVehicleDestroyed(int vehicle);
 
@@ -110,8 +115,9 @@ public __pl_vehicles_SetNTVOptional()
 {
 	MarkNativeAsOptional("Vehicle.Owner.get");
 	MarkNativeAsOptional("Vehicle.Owner.set");
-	MarkNativeAsOptional("Vehicle.Create");
 	MarkNativeAsOptional("Vehicle.ForcePlayerIn");
 	MarkNativeAsOptional("Vehicle.ForcePlayerOut");
+	MarkNativeAsOptional("CreateVehicle");
+	MarkNativeAsOptional("GetVehicleName");
 }
 #endif
