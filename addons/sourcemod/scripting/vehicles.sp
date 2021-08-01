@@ -979,10 +979,6 @@ public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
 			ReplyToCommand(client, "%t", "Unable to target");
 		}
 	}
-	else
-	{
-		ReplyToCommand(client, "%t", "#Command_RemoveVehicle_NoVehicleFound");
-	}
 	
 	return Plugin_Handled;
 }

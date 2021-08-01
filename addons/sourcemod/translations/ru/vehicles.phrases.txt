@@ -52,11 +52,6 @@
 		"ru"		"Транспортное средство перед вашим прицелом успешно удалено."
 	}
 	
-	"#Command_RemoveVehicle_NoVehicleFound"
-	{
-		"ru"		"Перед вашим прицелом нет подходящего транспортного средства."
-	}
-	
 	"#Command_RemovePlayerVehicles_Success"
 	{
 		"#format"	"{1:t}"

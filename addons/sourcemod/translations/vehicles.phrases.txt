@@ -52,11 +52,6 @@
 		"en"		"Removed the vehicle at their crosshair."
 	}
 	
-	"#Command_RemoveVehicle_NoVehicleFound"
-	{
-		"en"		"Not looking at any valid vehicle to remove."
-	}
-	
 	"#Command_RemovePlayerVehicles_Success"
 	{
 		"#format"	"{1:t}"
