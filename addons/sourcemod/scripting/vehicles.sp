@@ -1150,9 +1150,9 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 
 void DisplayMainVehicleMenu(int client)
 {
+	//TODO: Make this menu a topmenu!
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
-	menu.ExitButton = true;
 	
 	if (CheckCommandAccess(client, "sm_vehicle_create", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
@@ -1173,6 +1173,7 @@ void DisplayRemoveVehicleTargetMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_RemoveVehicles, MenuAction_Select | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_RemovePlayerVehicles");
+	menu.ExitBackButton = true;
 	
 	AddTargetsToMenu(menu, client);
 	
@@ -1231,7 +1232,6 @@ void DisplayVehicleCreateMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_VehicleCreateMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
-	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
