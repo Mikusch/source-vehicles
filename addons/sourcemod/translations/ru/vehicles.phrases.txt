@@ -31,9 +31,9 @@
 		"ru"		"Удалить транспортное средство перед вашим прицелом"
 	}
 	
-	"#Menu_Item_RemoveMyVehicles"
+	"#Menu_Item_RemovePlayerVehicles"
 	{
-		"ru"		"Удалить все собственные транспортные средства"
+		"ru"		"Удалить чужие автомобили"
 	}
 	
 	"#Menu_Item_RemoveAllVehicles"

@@ -31,9 +31,9 @@
 		"en"		"Remove vehicle at crosshair"
 	}
 	
-	"#Menu_Item_RemoveMyVehicles"
+	"#Menu_Item_RemovePlayerVehicles"
 	{
-		"en"		"Remove your vehicles"
+		"en"		"Remove player's vehicles"
 	}
 	
 	"#Menu_Item_RemoveAllVehicles"

@@ -18,6 +18,7 @@
 #include <sourcemod>
 #include <dhooks>
 #include <sdkhooks>
+#include <adminmenu>
 
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
@@ -1160,10 +1161,20 @@ void DisplayMainVehicleMenu(int client)
 		menu.AddItem("vehicle_removeaim", "#Menu_Item_RemoveAimTargetVehicle");
 	
 	if (CheckCommandAccess(client, "sm_vehicle_remove", ADMFLAG_GENERIC))
-		menu.AddItem("vehicle_removemy", "#Menu_Item_RemoveMyVehicles");
+		menu.AddItem("vehicle_remove", "#Menu_Item_RemovePlayerVehicles");
 	
 	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+void DisplayRemoveVehicleTargetMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_RemoveVehicles, MenuAction_Select | MenuAction_End);
+	menu.SetTitle("%t", "#Menu_Title_RemovePlayerVehicles");
+	
+	AddTargetsToMenu(menu, client);
 	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
@@ -1186,10 +1197,9 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 					FakeClientCommand(param1, "sm_vehicle_removeaim");
 					DisplayMainVehicleMenu(param1);
 				}
-				else if (StrEqual(info, "vehicle_removemy"))
+				else if (StrEqual(info, "vehicle_remove"))
 				{
-					FakeClientCommand(param1, "sm_vehicle_remove @me");
-					DisplayMainVehicleMenu(param1);
+					DisplayRemoveVehicleTargetMenu(param1);
 				}
 				else if (StrEqual(info, "vehicle_removeall"))
 				{
@@ -1274,6 +1284,47 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 	}
 	
 	return 0;
+}
+
+public int MenuHandler_RemoveVehicles(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Cancel:
+		{
+			if (param2 == MenuCancel_ExitBack)
+			{
+				DisplayMainVehicleMenu(param1);
+			}
+		}
+		case MenuAction_Select:
+		{
+			char info[32];
+			int userid, target;
+			
+			menu.GetItem(param2, info, sizeof(info));
+			userid = StringToInt(info);
+			
+			if ((target = GetClientOfUserId(userid)) == 0)
+			{
+				PrintToChat(param1, "[SM] %t", "Player no longer available");
+			}
+			else if (!CanUserTarget(param1, target))
+			{
+				PrintToChat(param1, "[SM] %t", "Unable to target");
+			}
+			else
+			{
+				FakeClientCommand(param1, "sm_vehicle_remove #%d", userid);
+			}
+			
+			DisplayRemoveVehicleTargetMenu(param1);
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------
