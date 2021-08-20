@@ -1,15 +1,5 @@
 "Phrases"
 {
-	"#Hint_VehicleKeys_Car"
-	{
-		"ru"		"%%+speed%% - ГАЗ %%+jump%% - РУЧНОЙ ТОРМОЗ"
-	}
-	
-	"#Hint_VehicleKeys_Airboat"
-	{
-		"ru"		"%%+forward%% УСКОРЕНИЕ %%+back%% ТОРМОЗ %%+moveleft%% НАЛЕВО %%+moveright%% НАПРАВО"
-	}
-	
 	"#Menu_Title_Main"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
@@ -71,5 +61,15 @@
 	"#Vehicle_HL2_Airboat"
 	{
 		"ru"		"Катер на воздушной подушке : Half-Life 2"
+	}
+	
+	"#Hint_VehicleKeys_Car"
+	{
+		"ru"		"%%+speed%% - ГАЗ %%+jump%% - РУЧНОЙ ТОРМОЗ"
+	}
+	
+	"#Hint_VehicleKeys_Airboat"
+	{
+		"ru"		"%%+forward%% УСКОРЕНИЕ %%+back%% ТОРМОЗ %%+moveleft%% НАЛЕВО %%+moveright%% НАПРАВО"
 	}
 }
