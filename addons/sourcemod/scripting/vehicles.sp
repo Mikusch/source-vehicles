@@ -27,7 +27,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"2.2.0"
+#define PLUGIN_VERSION	"2.3.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -1150,7 +1150,6 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 
 void DisplayMainVehicleMenu(int client)
 {
-	//TODO: Make this menu a topmenu!
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
 	

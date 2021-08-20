@@ -1,15 +1,5 @@
 "Phrases"
 {
-	"#Hint_VehicleKeys_Car"
-	{
-		"en"		"%%+speed%% TURBO %%+jump%% HANDBRAKE"
-	}
-	
-	"#Hint_VehicleKeys_Airboat"
-	{
-		"en"		"%%+forward%% SPEED UP %%+back%% SLOW DOWN %%+moveleft%% TURN LEFT %%+moveright%% TURN RIGHT"
-	}
-	
 	"#Menu_Title_Main"
 	{
 		"#format"	"{1:s},{2:s},{3:s}"
@@ -18,7 +8,12 @@
 	
 	"#Menu_Title_CreateVehicle"
 	{
-		"en"		"Select a vehicle to spawn"
+		"en"		"Spawn new vehicle:"
+	}
+	
+	"#Menu_Title_RemovePlayerVehicles"
+	{
+		"en"		"Remove player vehicles:"
 	}
 	
 	"#Menu_Item_CreateVehicle"
@@ -33,7 +28,7 @@
 	
 	"#Menu_Item_RemovePlayerVehicles"
 	{
-		"en"		"Remove player's vehicles"
+		"en"		"Remove player vehicles"
 	}
 	
 	"#Menu_Item_RemoveAllVehicles"
@@ -71,5 +66,15 @@
 	"#Vehicle_HL2_Airboat"
 	{
 		"en"		"Half-Life 2 Airboat"
+	}
+	
+	"#Hint_VehicleKeys_Car"
+	{
+		"en"		"%%+speed%% TURBO %%+jump%% HANDBRAKE"
+	}
+	
+	"#Hint_VehicleKeys_Airboat"
+	{
+		"en"		"%%+forward%% SPEED UP %%+back%% SLOW DOWN %%+moveleft%% TURN LEFT %%+moveright%% TURN RIGHT"
 	}
 }
