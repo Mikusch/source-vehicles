@@ -276,7 +276,7 @@ public void OnPluginStart()
 	
 	//Create plugin convars
 	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder");
-	vehicle_config_path.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
+	vehicle_config_path.AddChangeHook(ConVarChanged_ReloadVehicleConfig);
 	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
@@ -287,6 +287,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
 	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
 	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
+	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_GENERIC, "Reload vehicle configuration");
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -719,7 +720,7 @@ void RestoreConVar(const char[] name, const char[] oldValue)
 // ConVars
 //-----------------------------------------------------------------------------
 
-public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
+public void ConVarChanged_ReloadVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	ReadVehicleConfig();
 }
@@ -1025,6 +1026,14 @@ public Action ConCmd_RemoveAllVehicles(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action ConCmd_ReloadVehicleConfig(int client, int args)
+{
+	ReadVehicleConfig();
+	
+	ShowActivity2(client, "[SM] ", "%t", "#Command_ReloadVehicleConfig_Success");
+	return Plugin_Handled;
+}
+
 public Action CommandListener_VoiceMenu(int client, const char[] command, int args)
 {
 	char arg1[2], arg2[2];
@@ -1165,6 +1174,9 @@ void DisplayMainVehicleMenu(int client)
 	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
 	
+	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_reload", "#Menu_Item_ReloadVehicleConfig");
+	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -1204,6 +1216,11 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 				else if (StrEqual(info, "vehicle_removeall"))
 				{
 					FakeClientCommand(param1, "sm_vehicle_removeall");
+					DisplayMainVehicleMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_reload"))
+				{
+					FakeClientCommand(param1, "sm_vehicle_reload");
 					DisplayMainVehicleMenu(param1);
 				}
 			}

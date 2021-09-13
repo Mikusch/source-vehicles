@@ -36,6 +36,11 @@
 		"en"		"Remove all vehicles"
 	}
 	
+	"#Menu_Item_ReloadVehicleConfig"
+	{
+		"en"		"Reload vehicle configuration"
+	}
+	
 	"#Command_CreateVehicle_Invalid"
 	{
 		"#format"	"{1:s}"
@@ -56,6 +61,11 @@
 	"#Command_RemoveAllVehicles_Success"
 	{
 		"en"		"Removed all vehicles in the world."
+	}
+	
+	"#Command_ReloadVehicleConfig_Success"
+	{
+		"en"		"Reloaded the vehicle configuration."
 	}
 	
 	"#Vehicle_HL2_Jeep"
