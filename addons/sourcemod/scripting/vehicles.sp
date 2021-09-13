@@ -16,9 +16,9 @@
  */
 
 #include <sourcemod>
-#include <dhooks>
 #include <sdkhooks>
 #include <adminmenu>
+#include <dhooks>
 
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
