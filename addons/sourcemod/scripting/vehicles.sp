@@ -16,8 +16,9 @@
  */
 
 #include <sourcemod>
-#include <dhooks>
 #include <sdkhooks>
+#include <adminmenu>
+#include <dhooks>
 
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
@@ -26,7 +27,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"2.2.0"
+#define PLUGIN_VERSION	"2.3.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -207,11 +208,6 @@ enum struct VehicleProperties
 {
 	int entity;
 	int owner;
-	
-	void Initialize(int entity)
-	{
-		this.entity = entity;
-	}
 }
 
 methodmap Vehicle
@@ -226,7 +222,7 @@ methodmap Vehicle
 		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
 		{
 			VehicleProperties properties;
-			properties.Initialize(entity);
+			properties.entity = entity;
 			
 			g_VehicleProperties.PushArray(properties);
 		}
@@ -280,20 +276,18 @@ public void OnPluginStart()
 	
 	//Create plugin convars
 	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder");
-	vehicle_config_path.AddChangeHook(ConVarChanged_RefreshVehicleConfig);
+	vehicle_config_path.AddChangeHook(ConVarChanged_ReloadVehicleConfig);
 	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
 	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
 	
-	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_vehicles", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_createvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_spawnvehicle", ConCmd_CreateVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_destroyvehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_removevehicle", ConCmd_DestroyVehicle, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_destroyallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_removeallvehicles", ConCmd_DestroyAllVehicles, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
+	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
+	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
+	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
+	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
+	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_GENERIC, "Reload vehicle configuration");
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -345,11 +339,13 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 {
 	RegPluginLibrary("vehicles");
 	
+	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
 	CreateNative("Vehicle.Owner.get", NativeCall_VehicleOwnerGet);
 	CreateNative("Vehicle.Owner.set", NativeCall_VehicleOwnerSet);
-	CreateNative("Vehicle.Create", NativeCall_VehicleCreate);
+	CreateNative("Vehicle.GetId", NativeCall_VehicleGetId);
 	CreateNative("Vehicle.ForcePlayerIn", NativeCall_VehicleForcePlayerIn);
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
+	CreateNative("GetVehicleName", NativeCall_GetVehicleName);
 	
 	g_ForwardOnVehicleSpawned = new GlobalForward("OnVehicleSpawned", ET_Ignore, Param_Cell);
 	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
@@ -560,6 +556,11 @@ void V_swap(int &x, int &y)
 	y = temp;
 }
 
+bool IsEntityClient(int client)
+{
+	return 0 < client <= MaxClients;
+}
+
 bool IsEntityVehicle(int entity)
 {
 	char classname[32];
@@ -719,7 +720,7 @@ void RestoreConVar(const char[] name, const char[] oldValue)
 // ConVars
 //-----------------------------------------------------------------------------
 
-public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
+public void ConVarChanged_ReloadVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	ReadVehicleConfig();
 }
@@ -727,27 +728,6 @@ public void ConVarChanged_RefreshVehicleConfig(ConVar convar, const char[] oldVa
 //-----------------------------------------------------------------------------
 // Natives
 //-----------------------------------------------------------------------------
-
-public int NativeCall_VehicleOwnerGet(Handle plugin, int numParams)
-{
-	int vehicle = GetNativeCell(1);
-	
-	if (!IsEntityVehicle(vehicle))
-		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
-	
-	return Vehicle(vehicle).Owner;
-}
-
-public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
-{
-	int vehicle = GetNativeCell(1);
-	int owner = GetNativeCell(2);
-	
-	if (!IsEntityVehicle(vehicle))
-		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
-	
-	return Vehicle(vehicle).Owner = owner;
-}
 
 public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 {
@@ -777,6 +757,44 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 	}
 }
 
+public int NativeCall_VehicleOwnerGet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	return Vehicle(vehicle).Owner;
+}
+
+public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	int owner = GetNativeCell(2);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	return Vehicle(vehicle).Owner = owner;
+}
+
+public int NativeCall_VehicleGetId(Handle plugin, int numParams)
+{
+	int vehicle = GetNativeCell(1);
+	int maxlength = GetNativeCell(3);
+	
+	if (!IsEntityVehicle(vehicle))
+		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
+	
+	VehicleConfig config;
+	if (GetConfigByVehicleEnt(vehicle, config))
+	{
+		return SetNativeString(2, config.id, maxlength) == SP_ERROR_NONE;
+	}
+	
+	return false;
+}
+
 public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 {
 	int vehicle = GetNativeCell(1);
@@ -785,7 +803,7 @@ public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 	if (!IsEntityVehicle(vehicle))
 		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
 	
-	if (client < 1 || client > MaxClients)
+	if (!IsEntityClient(client))
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid client index %d", client);
 	
 	if (!IsClientInGame(client))
@@ -807,6 +825,23 @@ public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
 		return;
 	
 	SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), client);
+}
+
+public int NativeCall_GetVehicleName(Handle plugin, int numParams)
+{
+	VehicleConfig config;
+	
+	char id[256];
+	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
+	{
+		int maxlength = GetNativeCell(3);
+		int bytes;
+		return SetNativeString(2, config.name, maxlength, _, bytes) == SP_ERROR_NONE && bytes > 0;
+	}
+	else
+	{
+		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -906,7 +941,55 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action ConCmd_DestroyVehicle(int client, int args)
+public Action ConCmd_RemovePlayerVehicles(int client, int args)
+{
+	if (args < 1)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_vehicle_remove <#userid|name>");
+		return Plugin_Handled;
+	}
+	
+	char arg[MAX_TARGET_LENGTH];
+	GetCmdArg(1, arg, sizeof(arg));
+	
+	char target_name[MAX_TARGET_LENGTH];
+	int target_list[MAXPLAYERS], target_count;
+	bool tn_is_ml;
+	
+	if ((target_count = ProcessTargetString(arg, client, target_list, MaxClients + 1, COMMAND_TARGET_NONE, target_name, sizeof(target_name), tn_is_ml)) <= 0)
+	{
+		ReplyToTargetError(client, target_count);
+		return Plugin_Handled;
+	}
+	
+	int vehicle = MaxClients + 1;
+	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
+	{
+		int owner = Vehicle(vehicle).Owner;
+		if (!IsEntityClient(owner))
+			continue;
+		
+		for (int i = 0; i < target_count; i++)
+		{
+			int target = target_list[i];
+			if (owner == target)
+				RemoveEntity(vehicle);
+		}
+	}
+	
+	if (tn_is_ml)
+	{
+		ShowActivity2(client, "[SM] ", "%t", "#Command_RemovePlayerVehicles_Success", target_name);
+	}
+	else
+	{
+		ShowActivity2(client, "[SM] ", "%t", "#Command_RemovePlayerVehicles_Success", "_s", target_name);
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
 {
 	if (client == 0)
 	{
@@ -915,21 +998,24 @@ public Action ConCmd_DestroyVehicle(int client, int args)
 	}
 	
 	int entity = GetClientAimTarget(client, false);
-	
 	if (IsEntityVehicle(entity))
 	{
-		RemoveEntity(entity);
-		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_Success");
-	}
-	else
-	{
-		ReplyToCommand(client, "%t", "#Command_DestroyVehicle_NoVehicleFound");
+		int owner = Vehicle(entity).Owner;
+		if (!IsEntityClient(owner) || CanUserTarget(client, owner))
+		{
+			RemoveEntity(entity);
+			ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveVehicle_Success");
+		}
+		else
+		{
+			ReplyToCommand(client, "%t", "Unable to target");
+		}
 	}
 	
 	return Plugin_Handled;
 }
 
-public Action ConCmd_DestroyAllVehicles(int client, int args)
+public Action ConCmd_RemoveAllVehicles(int client, int args)
 {
 	int vehicle = MaxClients + 1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
@@ -937,7 +1023,15 @@ public Action ConCmd_DestroyAllVehicles(int client, int args)
 		RemoveEntity(vehicle);
 	}
 	
-	ReplyToCommand(client, "%t", "#Command_DestroyAllVehicles_Success");
+	ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveAllVehicles_Success");
+	return Plugin_Handled;
+}
+
+public Action ConCmd_ReloadVehicleConfig(int client, int args)
+{
+	ReadVehicleConfig();
+	
+	ShowActivity2(client, "[SM] ", "%t", "#Command_ReloadVehicleConfig_Success");
 	return Plugin_Handled;
 }
 
@@ -1002,7 +1096,7 @@ public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, U
 {
 	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
 	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
-	if (0 < activator <= MaxClients && driver != -1 && driver == activator)
+	if (IsEntityClient(activator) && driver != -1 && driver == activator)
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
@@ -1069,11 +1163,32 @@ void DisplayMainVehicleMenu(int client)
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
 	
-	menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
-	menu.AddItem("vehicle_destroy", "#Menu_Item_DestroyVehicle");
-	menu.AddItem("vehicle_destroyall", "#Menu_Item_DestroyAllVehicles");
+	if (CheckCommandAccess(client, "sm_vehicle_create", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
 	
-	menu.ExitButton = true;
+	if (CheckCommandAccess(client, "sm_vehicle_removeaim", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_removeaim", "#Menu_Item_RemoveAimTargetVehicle");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_remove", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_remove", "#Menu_Item_RemovePlayerVehicles");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
+	
+	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_GENERIC))
+		menu.AddItem("vehicle_reload", "#Menu_Item_ReloadVehicleConfig");
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+void DisplayRemoveVehicleTargetMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_RemoveVehicles, MenuAction_Select | MenuAction_End);
+	menu.SetTitle("%t", "#Menu_Title_RemovePlayerVehicles");
+	menu.ExitBackButton = true;
+	
+	AddTargetsToMenu(menu, client);
+	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -1090,14 +1205,23 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 				{
 					DisplayVehicleCreateMenu(param1);
 				}
-				else if (StrEqual(info, "vehicle_destroy"))
+				else if (StrEqual(info, "vehicle_removeaim"))
 				{
-					FakeClientCommand(param1, "sm_destroyvehicle");
+					FakeClientCommand(param1, "sm_vehicle_removeaim");
 					DisplayMainVehicleMenu(param1);
 				}
-				else if (StrEqual(info, "vehicle_destroyall"))
+				else if (StrEqual(info, "vehicle_remove"))
 				{
-					FakeClientCommand(param1, "sm_destroyallvehicles");
+					DisplayRemoveVehicleTargetMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_removeall"))
+				{
+					FakeClientCommand(param1, "sm_vehicle_removeall");
+					DisplayMainVehicleMenu(param1);
+				}
+				else if (StrEqual(info, "vehicle_reload"))
+				{
+					FakeClientCommand(param1, "sm_vehicle_reload");
 					DisplayMainVehicleMenu(param1);
 				}
 			}
@@ -1125,6 +1249,7 @@ void DisplayVehicleCreateMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_VehicleCreateMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
+	menu.ExitBackButton = true;
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
 	{
@@ -1135,8 +1260,6 @@ void DisplayVehicleCreateMenu(int client)
 		}
 	}
 	
-	menu.ExitButton = true;
-	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -1149,7 +1272,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 			char info[32];
 			if (menu.GetItem(param2, info, sizeof(info)))
 			{
-				FakeClientCommand(param1, "sm_createvehicle %s", info);
+				FakeClientCommand(param1, "sm_vehicle_create %s", info);
 				DisplayVehicleCreateMenu(param1);
 			}
 		}
@@ -1178,6 +1301,47 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 	}
 	
 	return 0;
+}
+
+public int MenuHandler_RemoveVehicles(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Cancel:
+		{
+			if (param2 == MenuCancel_ExitBack)
+			{
+				DisplayMainVehicleMenu(param1);
+			}
+		}
+		case MenuAction_Select:
+		{
+			char info[32];
+			int userid, target;
+			
+			menu.GetItem(param2, info, sizeof(info));
+			userid = StringToInt(info);
+			
+			if ((target = GetClientOfUserId(userid)) == 0)
+			{
+				PrintToChat(param1, "[SM] %t", "Player no longer available");
+			}
+			else if (!CanUserTarget(param1, target))
+			{
+				PrintToChat(param1, "[SM] %t", "Unable to target");
+			}
+			else
+			{
+				FakeClientCommand(param1, "sm_vehicle_remove #%d", userid);
+			}
+			
+			DisplayRemoveVehicleTargetMenu(param1);
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------
