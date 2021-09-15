@@ -835,7 +835,8 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 	if (GetNativeString(1, id, sizeof(id)) == SP_ERROR_NONE && GetConfigById(id, config))
 	{
 		int maxlength = GetNativeCell(3);
-		return SetNativeString(2, config.name, maxlength) == SP_ERROR_NONE;
+		int bytes;
+		return SetNativeString(2, config.name, maxlength, _, bytes) == SP_ERROR_NONE && bytes > 0;
 	}
 	else
 	{
