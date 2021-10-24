@@ -50,7 +50,7 @@ enum VehicleType
 	VEHICLE_TYPE_CAR_WHEELS = (1 << 0),
 	VEHICLE_TYPE_CAR_RAYCAST = (1 << 1),
 	VEHICLE_TYPE_JETSKI_RAYCAST = (1 << 2),
-	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3)
+	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3),
 }
 
 bool g_LoadSoundscript;
@@ -108,98 +108,109 @@ enum struct VehicleConfig
 	
 	void ReadConfig(KeyValues kv)
 	{
-		kv.GetString("id", this.id, 256, this.id);
-		kv.GetString("name", this.name, 256, this.name);
-		kv.GetString("model", this.model, PLATFORM_MAX_PATH, this.model);
-		kv.GetString("script", this.script, PLATFORM_MAX_PATH, this.script);
-		
-		char type[32];
-		kv.GetString("type", type, sizeof(type));
-		if (StrEqual(type, "car_wheels"))
-			this.type = VEHICLE_TYPE_CAR_WHEELS;
-		else if (StrEqual(type, "car_raycast"))
-			this.type = VEHICLE_TYPE_CAR_RAYCAST;
-		else if (StrEqual(type, "jetski_raycast"))
-			this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
-		else if (StrEqual(type, "airboat_raycast"))
-			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
-		else if (type[0] != '\0')
-			LogError("%s: Invalid vehicle type '%s'", this.id, type);
-		
-		kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH, this.soundscript);
-		if (this.soundscript[0] != '\0')
+		if (kv.GetSectionName(this.id, 256))
 		{
-			if (g_LoadSoundscript)
+			//TODO: Remove deprecated code (deprecated since: 2.3.1)
+			char id[256];
+			kv.GetString("id", id, sizeof(id));
+			if (id[0] != '\0')
 			{
+				strcopy(this.id, 256, id);
+				LogMessage("%s: The 'id' property is deprecated and is subject for removal in a future version, use the root section for the vehicle identifier", this.id);
+			}
+			
+			kv.GetString("name", this.name, 256);
+			kv.GetString("model", this.model, PLATFORM_MAX_PATH);
+			kv.GetString("script", this.script, PLATFORM_MAX_PATH);
+			
+			char type[32];
+			kv.GetString("type", type, sizeof(type));
+			if (StrEqual(type, "car_wheels"))
+				this.type = VEHICLE_TYPE_CAR_WHEELS;
+			else if (StrEqual(type, "car_raycast"))
+				this.type = VEHICLE_TYPE_CAR_RAYCAST;
+			else if (StrEqual(type, "jetski_raycast"))
+				this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
+			else if (StrEqual(type, "airboat_raycast"))
+				this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
+			else if (type[0] != '\0')
+				LogError("%s: Invalid vehicle type '%s'", this.id, type);
+			
+			kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH);
+			if (this.soundscript[0] != '\0')
+			{
+				if (g_LoadSoundscript)
+				{
 #if defined _loadsoundscript_included
-				SoundScript soundscript = LoadSoundScript(this.soundscript);
-				for (int i = 0; i < soundscript.Count; i++)
-				{
-					SoundEntry entry = soundscript.GetSound(i);
-					char soundname[256];
-					entry.GetName(soundname, sizeof(soundname));
-					PrecacheScriptSound(soundname);
-				}
+					SoundScript soundscript = LoadSoundScript(this.soundscript);
+					for (int i = 0; i < soundscript.Count; i++)
+					{
+						SoundEntry entry = soundscript.GetSound(i);
+						char soundname[256];
+						entry.GetName(soundname, sizeof(soundname));
+						PrecacheScriptSound(soundname);
+					}
 #else
-				LogMessage("%s: Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.id, this.soundscript);
+					LogMessage("%s: Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.id, this.soundscript);
 #endif
-			}
-			else
-			{
-				LogMessage("%s: Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.id, this.soundscript);
-			}
-		}
-		
-		this.skins = new ArrayList();
-		
-		char skins[128];
-		kv.GetString("skins", skins, sizeof(skins), "0");
-		
-		char split[32][4];
-		int retrieved = ExplodeString(skins, ",", split, sizeof(split), sizeof(split[]));
-		for (int i = 0; i < retrieved; i++)
-		{
-			int skin;
-			if (TrimString(split[i]) > 0 && StringToIntEx(split[i], skin) > 0)
-				this.skins.Push(skin);
-		}
-		
-		this.lock_speed = kv.GetFloat("lock_speed", 10.0);
-		kv.GetString("key_hint", this.key_hint, 256);
-		this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
-		
-		kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH);
-		if (this.horn_sound[0] != '\0')
-		{
-			char filepath[PLATFORM_MAX_PATH];
-			Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
-			if (FileExists(filepath, true))
-			{
-				AddFileToDownloadsTable(filepath);
-				Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
-				PrecacheSound(this.horn_sound);
-			}
-			else
-			{
-				LogError("%s: The file '%s' does not exist", this.id, filepath);
-				this.horn_sound[0] = '\0';
-			}
-		}
-		
-		if (kv.JumpToKey("downloads"))
-		{
-			if (kv.GotoFirstSubKey(false))
-			{
-				do
-				{
-					char filename[PLATFORM_MAX_PATH];
-					kv.GetString(NULL_STRING, filename, sizeof(filename));
-					AddFileToDownloadsTable(filename);
 				}
-				while (kv.GotoNextKey(false));
+				else
+				{
+					LogMessage("%s: Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.id, this.soundscript);
+				}
+			}
+			
+			this.skins = new ArrayList();
+			
+			char skins[128];
+			kv.GetString("skins", skins, sizeof(skins), "0");
+			
+			char split[32][4];
+			int retrieved = ExplodeString(skins, ",", split, sizeof(split), sizeof(split[]));
+			for (int i = 0; i < retrieved; i++)
+			{
+				int skin;
+				if (TrimString(split[i]) > 0 && StringToIntEx(split[i], skin) > 0)
+					this.skins.Push(skin);
+			}
+			
+			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
+			kv.GetString("key_hint", this.key_hint, 256);
+			this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
+			
+			kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH);
+			if (this.horn_sound[0] != '\0')
+			{
+				char filepath[PLATFORM_MAX_PATH];
+				Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
+				if (FileExists(filepath, true))
+				{
+					AddFileToDownloadsTable(filepath);
+					Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
+					PrecacheSound(this.horn_sound);
+				}
+				else
+				{
+					LogError("%s: The file '%s' does not exist", this.id, filepath);
+					this.horn_sound[0] = '\0';
+				}
+			}
+			
+			if (kv.JumpToKey("downloads"))
+			{
+				if (kv.GotoFirstSubKey(false))
+				{
+					do
+					{
+						char filename[PLATFORM_MAX_PATH];
+						kv.GetString(NULL_STRING, filename, sizeof(filename));
+						AddFileToDownloadsTable(filename);
+					}
+					while (kv.GotoNextKey(false));
+					kv.GoBack();
+				}
 				kv.GoBack();
 			}
-			kv.GoBack();
 		}
 	}
 }

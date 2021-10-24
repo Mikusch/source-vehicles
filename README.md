@@ -60,9 +60,8 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 ```
 "Vehicles"
 {
-	"0"
+	"example_vehicle"
 	{
-		"id"					"example_vehicle"
 		"name"					"#Vehicle_ExampleVehicle"
 		"model"					"models/vehicles/example_vehicle.mdl"
 		"script"				"scripts/vehicles/example_vehicle.txt"
