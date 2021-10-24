@@ -124,7 +124,7 @@ enum struct VehicleConfig
 		else if (StrEqual(type, "airboat_raycast"))
 			this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
 		else if (type[0] != '\0')
-			LogError("Invalid vehicle type '%s'", type);
+			LogError("%s: Invalid vehicle type '%s'", this.id, type);
 		
 		kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH, this.soundscript);
 		if (this.soundscript[0] != '\0')
@@ -141,12 +141,12 @@ enum struct VehicleConfig
 					PrecacheScriptSound(soundname);
 				}
 #else
-				LogMessage("Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.soundscript);
+				LogMessage("%s: Failed to load vehicle soundscript '%s' because the plugin was compiled without the LoadSoundscript include", this.id, this.soundscript);
 #endif
 			}
 			else
 			{
-				LogMessage("Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.soundscript);
+				LogMessage("%s: Failed to load vehicle soundscript '%s' because the LoadSoundscript extension could not be found", this.id, this.soundscript);
 			}
 		}
 		
@@ -181,7 +181,7 @@ enum struct VehicleConfig
 			}
 			else
 			{
-				LogError("The file '%s' does not exist!", filepath);
+				LogError("%s: The file '%s' does not exist", this.id, filepath);
 				this.horn_sound[0] = '\0';
 			}
 		}
