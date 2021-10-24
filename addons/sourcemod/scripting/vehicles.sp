@@ -116,7 +116,7 @@ enum struct VehicleConfig
 			if (id[0] != '\0')
 			{
 				strcopy(this.id, 256, id);
-				LogMessage("%s: The 'id' property is deprecated and is subject for removal in a future version, use the root section for the vehicle identifier", this.id);
+				LogMessage("%s: The 'id' property is deprecated and subject to removal in a future version, use the section name instead", this.id);
 			}
 			
 			kv.GetString("name", this.name, 256);
@@ -221,6 +221,44 @@ enum struct VehicleProperties
 	int owner;
 }
 
+methodmap Player
+{
+	public Player(int client)
+	{
+		return view_as<Player>(client);
+	}
+	
+	property bool InUse
+	{
+		public get()
+		{
+			return g_ClientInUse[this];
+		}
+		public set(bool value)
+		{
+			g_ClientInUse[this] = value;
+		}
+	}
+	
+	property bool IsUsingHorn
+	{
+		public get()
+		{
+			return g_ClientIsUsingHorn[this];
+		}
+		public set(bool value)
+		{
+			g_ClientIsUsingHorn[this] = value;
+		}
+	}
+	
+	public void Reset()
+	{
+		this.InUse = false;
+		this.IsUsingHorn = false;
+	}
+}
+
 methodmap Vehicle
 {
 	public Vehicle(int entity)
@@ -295,8 +333,8 @@ public void OnPluginStart()
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
 	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
-	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
 	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
+	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
 	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
 	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_GENERIC, "Reload vehicle configuration");
 	
@@ -413,14 +451,14 @@ public void OnClientPutInServer(int client)
 {
 	DHookClient(client);
 	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
-	g_ClientIsUsingHorn[client] = false;
+	Player(client).Reset();
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
-	if (g_ClientInUse[client])
+	if (Player(client).InUse)
 	{
-		g_ClientInUse[client] = !g_ClientInUse[client];
+		Player(client).InUse = false;
 		buttons |= IN_USE;
 		return Plugin_Changed;
 	}
@@ -435,15 +473,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			{
 				if (buttons & IN_ATTACK3)
 				{
-					if (!g_ClientIsUsingHorn[client])
+					if (!Player(client).IsUsingHorn)
 					{
-						g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+						Player(client).IsUsingHorn = true;
 						EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT);
 					}
 				}
 				else if (g_ClientIsUsingHorn[client])
 				{
-					g_ClientIsUsingHorn[client] = !g_ClientIsUsingHorn[client];
+					Player(client).IsUsingHorn = false;
 					EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 				}
 			}
@@ -952,6 +990,32 @@ public Action ConCmd_CreateVehicle(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
+{
+	if (client == 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	
+	int entity = GetClientAimTarget(client, false);
+	if (IsEntityVehicle(entity))
+	{
+		int owner = Vehicle(entity).Owner;
+		if (!IsEntityClient(owner) || CanUserTarget(client, owner))
+		{
+			RemoveEntity(entity);
+			ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveVehicle_Success");
+		}
+		else
+		{
+			ReplyToCommand(client, "%t", "Unable to target");
+		}
+	}
+	
+	return Plugin_Handled;
+}
+
 public Action ConCmd_RemovePlayerVehicles(int client, int args)
 {
 	if (args < 1)
@@ -1000,32 +1064,6 @@ public Action ConCmd_RemovePlayerVehicles(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action ConCmd_RemoveAimTargetVehicle(int client, int args)
-{
-	if (client == 0)
-	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
-		return Plugin_Handled;
-	}
-	
-	int entity = GetClientAimTarget(client, false);
-	if (IsEntityVehicle(entity))
-	{
-		int owner = Vehicle(entity).Owner;
-		if (!IsEntityClient(owner) || CanUserTarget(client, owner))
-		{
-			RemoveEntity(entity);
-			ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveVehicle_Success");
-		}
-		else
-		{
-			ReplyToCommand(client, "%t", "Unable to target");
-		}
-	}
-	
-	return Plugin_Handled;
-}
-
 public Action ConCmd_RemoveAllVehicles(int client, int args)
 {
 	int vehicle = MaxClients + 1;
@@ -1056,7 +1094,7 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 	{
 		if (arg1[0] == '0' && arg2[0] == '0')	//MEDIC!
 		{
-			g_ClientInUse[client] = true;
+			Player(client).InUse = true;
 		}
 	}
 }
@@ -1192,9 +1230,25 @@ void DisplayMainVehicleMenu(int client)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
+void DisplayVehicleCreateMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_CreateVehicle, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
+	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
+	menu.ExitBackButton = true;
+	
+	for (int i = 0; i < g_AllVehicles.Length; i++)
+	{
+		VehicleConfig config;
+		if (g_AllVehicles.GetArray(i, config, sizeof(config)) > 0)
+			menu.AddItem(config.id, config.id);
+	}
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
 void DisplayRemoveVehicleTargetMenu(int client)
 {
-	Menu menu = new Menu(MenuHandler_RemoveVehicles, MenuAction_Select | MenuAction_End);
+	Menu menu = new Menu(MenuHandler_RemovePlayerVehicles, MenuAction_Select | MenuAction_End);
 	menu.SetTitle("%t", "#Menu_Title_RemovePlayerVehicles");
 	menu.ExitBackButton = true;
 	
@@ -1256,25 +1310,7 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 	return 0;
 }
 
-void DisplayVehicleCreateMenu(int client)
-{
-	Menu menu = new Menu(MenuHandler_VehicleCreateMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
-	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
-	menu.ExitBackButton = true;
-	
-	for (int i = 0; i < g_AllVehicles.Length; i++)
-	{
-		VehicleConfig config;
-		if (g_AllVehicles.GetArray(i, config, sizeof(config)) > 0)
-		{
-			menu.AddItem(config.id, config.id);
-		}
-	}
-	
-	menu.Display(client, MENU_TIME_FOREVER);
-}
-
-public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param1, int param2)
+public int MenuHandler_CreateVehicle(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
@@ -1314,7 +1350,7 @@ public int MenuHandler_VehicleCreateMenu(Menu menu, MenuAction action, int param
 	return 0;
 }
 
-public int MenuHandler_RemoveVehicles(Menu menu, MenuAction action, int param1, int param2)
+public int MenuHandler_RemovePlayerVehicles(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
@@ -1474,7 +1510,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 		if (client != -1)
 		{
-			g_ClientIsUsingHorn[client] = false;
+			Player(client).IsUsingHorn = false;
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 		}
 	}
