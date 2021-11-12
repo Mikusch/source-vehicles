@@ -690,7 +690,6 @@ void ReadVehicleConfig()
 			kv.GoBack();
 		}
 		kv.GoBack();
-		delete kv;
 		
 		LogMessage("Successfully loaded %d vehicles from configuration", g_AllVehicles.Length);
 	}
@@ -698,6 +697,7 @@ void ReadVehicleConfig()
 	{
 		LogError("Failed to import configuration file: %s", file);
 	}
+	delete kv;
 }
 
 bool GetConfigById(const char[] id, VehicleConfig buffer)
