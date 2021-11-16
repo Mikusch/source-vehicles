@@ -1210,7 +1210,7 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 void DisplayMainVehicleMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_MainVehicleMenu, MenuAction_Select | MenuAction_DisplayItem | MenuAction_End);
-	menu.SetTitle("%t", "#Menu_Title_Main", PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
+	menu.SetTitle("%T", "#Menu_Title_Main", client, PLUGIN_VERSION, PLUGIN_AUTHOR, PLUGIN_URL);
 	
 	if (CheckCommandAccess(client, "sm_vehicle_create", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_create", "#Menu_Item_CreateVehicle");
@@ -1233,7 +1233,7 @@ void DisplayMainVehicleMenu(int client)
 void DisplayVehicleCreateMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_CreateVehicle, MenuAction_Select | MenuAction_DisplayItem | MenuAction_Cancel | MenuAction_End);
-	menu.SetTitle("%t", "#Menu_Title_CreateVehicle");
+	menu.SetTitle("%T", "#Menu_Title_CreateVehicle", client);
 	menu.ExitBackButton = true;
 	
 	for (int i = 0; i < g_AllVehicles.Length; i++)
@@ -1249,7 +1249,7 @@ void DisplayVehicleCreateMenu(int client)
 void DisplayRemoveVehicleTargetMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_RemovePlayerVehicles, MenuAction_Select | MenuAction_End);
-	menu.SetTitle("%t", "#Menu_Title_RemovePlayerVehicles");
+	menu.SetTitle("%T", "#Menu_Title_RemovePlayerVehicles", client);
 	menu.ExitBackButton = true;
 	
 	AddTargetsToMenu(menu, client);
@@ -1296,8 +1296,7 @@ public int MenuHandler_MainVehicleMenu(Menu menu, MenuAction action, int param1,
 			char info[32], display[128];
 			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)))
 			{
-				SetGlobalTransTarget(param1);
-				Format(display, sizeof(display), "%t", display);
+				Format(display, sizeof(display), "%T", display, param1);
 				return RedrawMenuItem(display);
 			}
 		}
@@ -1329,8 +1328,7 @@ public int MenuHandler_CreateVehicle(Menu menu, MenuAction action, int param1, i
 			VehicleConfig config;
 			if (menu.GetItem(param2, info, sizeof(info), _, display, sizeof(display)) && GetConfigById(info, config) && TranslationPhraseExists(config.name))
 			{
-				SetGlobalTransTarget(param1);
-				Format(display, sizeof(display), "%t", config.name);
+				Format(display, sizeof(display), "%T", config.name, param1);
 				return RedrawMenuItem(display);
 			}
 		}
