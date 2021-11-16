@@ -256,18 +256,18 @@
 		{
 			"CBaseAnimating::StudioFrameAdvance"
 			{
-				"linux"		"195"
-				"windows"	"194"
+				"linux"		"198"
+				"windows"	"197"
 			}
 			"CBasePlayer::GetInVehicle"
 			{
-				"linux"		"398"
-				"windows"	"397"
+				"linux"		"4001"
+				"windows"	"400"
 			}
 			"CBasePlayer::LeaveVehicle"
 			{
-				"linux"		"399"
-				"windows"	"398"
+				"linux"		"402"
+				"windows"	"401"
 			}
 		}
 	}
