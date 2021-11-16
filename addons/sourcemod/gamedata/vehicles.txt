@@ -261,7 +261,7 @@
 			}
 			"CBasePlayer::GetInVehicle"
 			{
-				"linux"		"4001"
+				"linux"		"401"
 				"windows"	"400"
 			}
 			"CBasePlayer::LeaveVehicle"
