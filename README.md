@@ -21,7 +21,7 @@ This plugin bundles the required entity fixes, and a few configurable nice-to-ha
 
 ## Dependencies
 
-* SourceMod 1.10
+* SourceMod 1.11
 * [DHooks with Detour Support](https://github.com/peace-maker/DHooks2)
 * [LoadSoundScript](https://github.com/haxtonsale/LoadSoundScript) (optional, used for vehicle sounds)
 

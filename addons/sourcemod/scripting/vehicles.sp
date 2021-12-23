@@ -27,7 +27,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION	"2.3.3"
+#define PLUGIN_VERSION	"2.4.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -108,20 +108,11 @@ enum struct VehicleConfig
 	
 	void ReadConfig(KeyValues kv)
 	{
-		if (kv.GetSectionName(this.id, 256))
+		if (kv.GetSectionName(this.id, sizeof(this.id)))
 		{
-			//TODO: Remove deprecated code (deprecated since: 2.3.1)
-			char id[256];
-			kv.GetString("id", id, sizeof(id));
-			if (id[0] != '\0')
-			{
-				strcopy(this.id, 256, id);
-				LogMessage("%s: The 'id' property is deprecated and subject to removal in a future version, use the section name instead", this.id);
-			}
-			
-			kv.GetString("name", this.name, 256);
-			kv.GetString("model", this.model, PLATFORM_MAX_PATH);
-			kv.GetString("script", this.script, PLATFORM_MAX_PATH);
+			kv.GetString("name", this.name, sizeof(this.name));
+			kv.GetString("model", this.model, sizeof(this.model));
+			kv.GetString("script", this.script, sizeof(this.script));
 			
 			char type[32];
 			kv.GetString("type", type, sizeof(type));
@@ -136,7 +127,7 @@ enum struct VehicleConfig
 			else if (type[0] != '\0')
 				LogError("%s: Invalid vehicle type '%s'", this.id, type);
 			
-			kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH);
+			kv.GetString("soundscript", this.soundscript, sizeof(this.soundscript));
 			if (this.soundscript[0] != '\0')
 			{
 				if (g_LoadSoundscript)
@@ -175,10 +166,10 @@ enum struct VehicleConfig
 			}
 			
 			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
-			kv.GetString("key_hint", this.key_hint, 256);
+			kv.GetString("key_hint", this.key_hint, sizeof(this.key_hint));
 			this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
 			
-			kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH);
+			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
 			if (this.horn_sound[0] != '\0')
 			{
 				char filepath[PLATFORM_MAX_PATH];
@@ -186,7 +177,7 @@ enum struct VehicleConfig
 				if (FileExists(filepath, true))
 				{
 					AddFileToDownloadsTable(filepath);
-					Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
+					Format(this.horn_sound, sizeof(this.horn_sound), ")%s", this.horn_sound);
 					PrecacheSound(this.horn_sound);
 				}
 				else
@@ -228,15 +219,23 @@ methodmap Player
 		return view_as<Player>(client);
 	}
 	
+	property int _client
+	{
+		public get()
+		{
+			return view_as<int>(this);
+		}
+	}
+	
 	property bool InUse
 	{
 		public get()
 		{
-			return g_ClientInUse[this];
+			return g_ClientInUse[this._client];
 		}
 		public set(bool value)
 		{
-			g_ClientInUse[this] = value;
+			g_ClientInUse[this._client] = value;
 		}
 	}
 	
@@ -244,11 +243,11 @@ methodmap Player
 	{
 		public get()
 		{
-			return g_ClientIsUsingHorn[this];
+			return g_ClientIsUsingHorn[this._client];
 		}
 		public set(bool value)
 		{
-			g_ClientIsUsingHorn[this] = value;
+			g_ClientIsUsingHorn[this._client] = value;
 		}
 	}
 	
@@ -279,29 +278,29 @@ methodmap Vehicle
 		return view_as<Vehicle>(entity);
 	}
 	
+	property int _listIndex
+	{
+		public get()
+		{
+			return g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
+		}
+	}
+	
 	property int Owner
 	{
 		public get()
 		{
-			int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
-			return g_VehicleProperties.Get(index, VehicleProperties::owner);
+			return g_VehicleProperties.Get(this._listIndex, VehicleProperties::owner);
 		}
 		public set(int value)
 		{
-			int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
-			g_VehicleProperties.Set(index, value, VehicleProperties::owner);
+			g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::owner);
 		}
 	}
 	
 	public void Destroy()
 	{
-		int index = g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
-		g_VehicleProperties.Erase(index);
-	}
-	
-	public static void InitializePropertyList()
-	{
-		g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
+		g_VehicleProperties.Erase(this._listIndex);
 	}
 }
 
@@ -340,8 +339,7 @@ public void OnPluginStart()
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
-	Vehicle.InitializePropertyList();
-	
+	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
 	
 	GameData gamedata = new GameData("vehicles");
@@ -400,6 +398,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
 	
 	MarkNativeAsOptional("LoadSoundScript");
+	
+	return APLRes_Success;
 }
 
 public void OnAllPluginsLoaded()
@@ -578,6 +578,7 @@ bool TeleportEntityToClientViewPos(int entity, int client, int mask)
 	//We don't want the entity angle to consider the x-axis
 	angles[0] = 0.0;
 	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
+	
 	return true;
 }
 
@@ -824,7 +825,9 @@ public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
 	if (!IsEntityVehicle(vehicle))
 		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
 	
-	return Vehicle(vehicle).Owner = owner;
+	Vehicle(vehicle).Owner = owner;
+	
+	return 0;
 }
 
 public int NativeCall_VehicleGetId(Handle plugin, int numParams)
@@ -859,6 +862,8 @@ public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not in game", client);
 	
 	SDKCall_HandlePassengerEntry(GetServerVehicle(vehicle), client, true);
+	
+	return 0;
 }
 
 public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
@@ -871,9 +876,11 @@ public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
 	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	
 	if (client == -1)
-		return;
+		return 0;
 	
 	SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), client);
+	
+	return 0;
 }
 
 public int NativeCall_GetVehicleName(Handle plugin, int numParams)
@@ -931,6 +938,8 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 			}
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
@@ -946,6 +955,7 @@ public Action ConCmd_OpenVehicleMenu(int client, int args)
 	}
 	
 	DisplayMainVehicleMenu(client);
+	
 	return Plugin_Handled;
 }
 
@@ -1073,6 +1083,7 @@ public Action ConCmd_RemoveAllVehicles(int client, int args)
 	}
 	
 	ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveAllVehicles_Success");
+	
 	return Plugin_Handled;
 }
 
@@ -1081,6 +1092,7 @@ public Action ConCmd_ReloadVehicleConfig(int client, int args)
 	ReadVehicleConfig();
 	
 	ShowActivity2(client, "[SM] ", "%t", "#Command_ReloadVehicleConfig_Success");
+	
 	return Plugin_Handled;
 }
 
@@ -1097,6 +1109,8 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 			Player(client).InUse = true;
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
@@ -1387,6 +1401,8 @@ public int MenuHandler_RemovePlayerVehicles(Menu menu, MenuAction action, int pa
 			delete menu;
 		}
 	}
+	
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1462,6 +1478,8 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 		
 		SDKCall_VehicleSetupMove(GetServerVehicle(vehicle), client, ucmd, helper, move);
 	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_ShouldCollide(DHookReturn ret, DHookParam params)
@@ -1512,6 +1530,8 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 		}
 	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
@@ -1570,6 +1590,8 @@ public MRESReturn DHookCallback_GetInVehiclePre(int client)
 	//Disable client prediction for less jittery movement
 	if (!IsFakeClient(client))
 		SendConVarValue(client, FindConVar("sv_client_predict"), "0");
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_LeaveVehiclePre(int client)
@@ -1577,6 +1599,8 @@ public MRESReturn DHookCallback_LeaveVehiclePre(int client)
 	//Re-enable client prediction
 	if (!IsFakeClient(client))
 		SendConVarValue(client, FindConVar("sv_client_predict"), "1");
+	
+	return MRES_Ignored;
 }
 
 //-----------------------------------------------------------------------------
