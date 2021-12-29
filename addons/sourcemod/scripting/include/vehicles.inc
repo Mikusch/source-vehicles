@@ -30,18 +30,19 @@ methodmap Vehicle
 	/**
 	 * Creates and spawns a new vehicle matching the given identifier.
 	 *
-	 * @param id			Identifier of the vehicle, as defined in the configuration.
-	 * @param origin		Origin to spawn vehicle at.
-	 * @param angles		Angles to spawn vehicle at.
-	 * @param owner			Owner entity of this vehicle.
-	 * @return				Entity index of the vehicle.
+	 * @param id			Identifier of the vehicle.
+	 * @param origin		Spawn origin, or NULL_VECTOR for none.
+	 * @param angles		Spawn angles, or NULL_VECTOR for none.
+	 * @param owner			Owner entity, or -1 for none.
+	 * @return				Entity index.
+	 * @error				Invalid identifier.
 	 */
-	public static native int Create(const char[] id, const float origin[3], const float angles[3], int owner = 0);
+	public static native int Create(const char[] id, const float origin[3] = NULL_VECTOR, const float angles[3] = NULL_VECTOR, int owner = -1);
 	
 	/**
-	 * The owner entity of this vehicle.
+	 * The owner entity of this vehicle. In most cases this will be the client that spawned it.
 	 *
-	 * This property is an alternative to m_hOwnerEntity that still allows the owner to collide with the vehicle.
+	 * Note: This is NOT the same as the m_hOwnerEntity entity property.
 	 */
 	property int Owner
 	{
@@ -74,10 +75,21 @@ methodmap Vehicle
 }
 
 /**
+ * Retrieves the name of the vehicle with the given identifier.
+ * 
+ * @param id			Identifier of the vehicle.
+ * @param buffer		Buffer to store the name in.
+ * @param maxlength		Maximum size of the buffer.
+ * @return				True on success, false on failure.
+ */
+native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
+
+/**
  * Called when a vehicle entity has spawned.
  *
  * @param vehicle		The vehicle entity.
  */
+#pragma deprecated Use SDKHook_SpawnPost instead.
 forward void OnVehicleSpawned(int vehicle);
 
 /**
@@ -87,17 +99,8 @@ forward void OnVehicleSpawned(int vehicle);
  *
  * @param vehicle		The vehicle entity.
  */
+#pragma deprecated Use OnEntityDestroyed instead.
 forward void OnVehicleDestroyed(int vehicle);
-
-/**
- * Retrieves the name of the vehicle with the given identifier.
- * 
- * @param id			Identifier of the vehicle, as defined in the configuration.
- * @param buffer		Buffer to store the name in.
- * @param maxlength		Maximum size of the buffer.
- * @return				True on success, false on failure.
- */
-native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
 
 public SharedPlugin __pl_vehicles =
 {
