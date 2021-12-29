@@ -264,7 +264,8 @@ methodmap Vehicle
 		if (!IsValidEntity(entity))
 			return view_as<Vehicle>(INVALID_ENT_REFERENCE);
 		
-		entity = EntIndexToEntRef(entity);
+		//The passed entity might be either an index or a reference, ensure it's a reference
+		entity = EntIndexToEntRef(EntRefToEntIndex(entity));
 		
 		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
 		{
@@ -299,16 +300,17 @@ methodmap Vehicle
 	
 	public void Destroy()
 	{
-		g_VehicleProperties.Erase(this._listIndex);
+		//Delay by a frame to allow subplugins to react
+		RequestFrame(RequestFrameCallback_DestroyVehicle, this._listIndex);
 	}
 }
 
-public Plugin myinfo = 
+public Plugin myinfo =
 {
-	name = "Driveable Vehicles", 
-	author = PLUGIN_AUTHOR, 
-	description = "Fully functioning driveable vehicles", 
-	version = PLUGIN_VERSION, 
+	name = "Driveable Vehicles",
+	author = PLUGIN_AUTHOR,
+	description = "Fully functioning driveable vehicles",
+	version = PLUGIN_VERSION,
 	url = PLUGIN_URL
 }
 
@@ -519,7 +521,7 @@ public void OnEntityDestroyed(int entity)
 // Plugin Functions
 //-----------------------------------------------------------------------------
 
-int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int owner = 0)
+int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int owner)
 {
 	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	if (vehicle != -1)
@@ -938,6 +940,15 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 	}
 	
 	return Plugin_Continue;
+}
+
+//-----------------------------------------------------------------------------
+// RequestFrame Callbacks
+//-----------------------------------------------------------------------------
+
+public void RequestFrameCallback_DestroyVehicle(int index)
+{
+	g_VehicleProperties.Erase(index);
 }
 
 //-----------------------------------------------------------------------------
