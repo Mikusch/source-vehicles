@@ -84,24 +84,6 @@ methodmap Vehicle
  */
 native bool GetVehicleName(const char[] id, char[] buffer, int maxlength);
 
-/**
- * Called when a vehicle entity has spawned.
- *
- * @param vehicle		The vehicle entity.
- */
-#pragma deprecated Use SDKHook_SpawnPost instead.
-forward void OnVehicleSpawned(int vehicle);
-
-/**
- * Called when a vehicle entity is being destroyed.
- *
- * The vehicle properties can still be accessed in this forward.
- *
- * @param vehicle		The vehicle entity.
- */
-#pragma deprecated Use OnEntityDestroyed instead.
-forward void OnVehicleDestroyed(int vehicle);
-
 public SharedPlugin __pl_vehicles =
 {
 	name = "vehicles",

@@ -61,9 +61,6 @@ ConVar vehicle_passenger_damage_modifier;
 ConVar vehicle_enable_entry_exit_anims;
 ConVar vehicle_enable_horns;
 
-GlobalForward g_ForwardOnVehicleSpawned;
-GlobalForward g_ForwardOnVehicleDestroyed;
-
 DynamicHook g_DHookShouldCollide;
 DynamicHook g_DHookSetPassenger;
 DynamicHook g_DHookIsPassengerVisible;
@@ -394,9 +391,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
 	CreateNative("GetVehicleName", NativeCall_GetVehicleName);
 	
-	g_ForwardOnVehicleSpawned = new GlobalForward("OnVehicleSpawned", ET_Ignore, Param_Cell);
-	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
-	
 	MarkNativeAsOptional("LoadSoundScript");
 	
 	return APLRes_Success;
@@ -510,8 +504,6 @@ public void OnEntityDestroyed(int entity)
 	
 	if (IsEntityVehicle(entity))
 	{
-		Forward_OnVehicleDestroyed(entity);
-		
 		Vehicle(entity).Destroy();
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
 	}
@@ -901,24 +893,6 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 }
 
 //-----------------------------------------------------------------------------
-// Forwards
-//-----------------------------------------------------------------------------
-
-void Forward_OnVehicleSpawned(int vehicle)
-{
-	Call_StartForward(g_ForwardOnVehicleSpawned);
-	Call_PushCell(vehicle);
-	Call_Finish();
-}
-
-void Forward_OnVehicleDestroyed(int vehicle)
-{
-	Call_StartForward(g_ForwardOnVehicleDestroyed);
-	Call_PushCell(vehicle);
-	Call_Finish();
-}
-
-//-----------------------------------------------------------------------------
 // Timers
 //-----------------------------------------------------------------------------
 
@@ -1222,8 +1196,6 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	{
 		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
 	}
-	
-	Forward_OnVehicleSpawned(vehicle);
 }
 
 //-----------------------------------------------------------------------------
