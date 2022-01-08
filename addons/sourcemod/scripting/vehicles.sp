@@ -579,7 +579,7 @@ public bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
 	return entity != data;
 }
 
-void ShowKeyHintText(int client, const char[] format, any...)
+void PrintKeyHintText(int client, const char[] format, any...)
 {
 	char buffer[256];
 	SetGlobalTransTarget(client);
@@ -908,7 +908,7 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 			VehicleConfig config;
 			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != '\0')
 			{
-				ShowKeyHintText(client, "%t", config.key_hint);
+				PrintKeyHintText(client, "%t", config.key_hint);
 			}
 		}
 	}
