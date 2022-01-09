@@ -258,10 +258,48 @@ methodmap Vehicle
 {
 	public Vehicle(int entity)
 	{
+		return view_as<Vehicle>(entity);
+	}
+	
+	property int _entityRef
+	{
+		public get()
+		{
+			//Doubly convert it to ensure it is an entity reference
+			return EntIndexToEntRef(EntRefToEntIndex(view_as<int>(this)));
+		}
+	}
+	
+	property int _listIndex
+	{
+		public get()
+		{
+			return g_VehicleProperties.FindValue(this._entityRef, VehicleProperties::entity);
+		}
+	}
+	
+	property int Owner
+	{
+		public get()
+		{
+			if (this._listIndex != -1)
+				return g_VehicleProperties.Get(this._listIndex, VehicleProperties::owner);
+			
+			return -1;
+		}
+		public set(int value)
+		{
+			if (this._listIndex != -1)
+				g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::owner);
+		}
+	}
+	
+	public static bool Register(int entity)
+	{
 		if (!IsValidEntity(entity))
-			return view_as<Vehicle>(INVALID_ENT_REFERENCE);
+			return false;
 		
-		//The passed entity might be either an index or a reference, ensure it's a reference
+		//Doubly convert it to ensure it is an entity reference
 		entity = EntIndexToEntRef(EntRefToEntIndex(entity));
 		
 		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
@@ -272,33 +310,13 @@ methodmap Vehicle
 			g_VehicleProperties.PushArray(properties);
 		}
 		
-		return view_as<Vehicle>(entity);
-	}
-	
-	property int _listIndex
-	{
-		public get()
-		{
-			return g_VehicleProperties.FindValue(view_as<int>(this), VehicleProperties::entity);
-		}
-	}
-	
-	property int Owner
-	{
-		public get()
-		{
-			return g_VehicleProperties.Get(this._listIndex, VehicleProperties::owner);
-		}
-		public set(int value)
-		{
-			g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::owner);
-		}
+		return true;
 	}
 	
 	public void Destroy()
 	{
-		//Delay by a frame to allow subplugins to react
-		RequestFrame(RequestFrameCallback_DestroyVehicle, this._listIndex);
+		//Delay by one frame to allow subplugins to access data in OnEntityDestroyed
+		RequestFrame(RequestFrameCallback_DestroyVehicle, this._entityRef);
 	}
 }
 
@@ -489,6 +507,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (StrEqual(classname, VEHICLE_CLASSNAME))
 	{
+		Vehicle.Register(entity);
+		
 		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
 		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
 		SDKHook(entity, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
@@ -920,9 +940,11 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 // RequestFrame Callbacks
 //-----------------------------------------------------------------------------
 
-public void RequestFrameCallback_DestroyVehicle(int index)
+public void RequestFrameCallback_DestroyVehicle(int entity)
 {
-	g_VehicleProperties.Erase(index);
+	int index = g_VehicleProperties.FindValue(entity, VehicleProperties::entity);
+	if (index != -1)
+		g_VehicleProperties.Erase(index);
 }
 
 //-----------------------------------------------------------------------------
