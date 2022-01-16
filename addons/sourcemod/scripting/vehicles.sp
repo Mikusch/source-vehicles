@@ -15,6 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#pragma semicolon 1
+#pragma newdecls required
+
 #include <sourcemod>
 #include <sdkhooks>
 #include <adminmenu>
@@ -23,9 +26,6 @@
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
-
-#pragma semicolon 1
-#pragma newdecls required
 
 #define PLUGIN_VERSION	"2.4.0"
 #define PLUGIN_AUTHOR	"Mikusch"
