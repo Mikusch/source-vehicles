@@ -1273,7 +1273,7 @@ void DisplayRemoveVehicleTargetMenu(int client)
 	menu.SetTitle("%T", "#Menu_Title_RemovePlayerVehicles", client);
 	menu.ExitBackButton = true;
 	
-	AddTargetsToMenu(menu, client);
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
 	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
