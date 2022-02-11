@@ -535,61 +535,61 @@ public void OnEntityDestroyed(int entity)
 
 int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int owner)
 {
-	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
-	if (vehicle != -1)
-	{
-		char targetname[256];
-		Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
-		
-		DispatchKeyValue(vehicle, "targetname", targetname);
-		DispatchKeyValue(vehicle, "model", config.model);
-		DispatchKeyValue(vehicle, "vehiclescript", config.script);
-		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
-		DispatchKeyValueVector(vehicle, "origin", origin);
-		DispatchKeyValueVector(vehicle, "angles", angles);
-		
-		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
-		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
-		
-		Vehicle(vehicle).Owner = owner;
-		
-		if (DispatchSpawn(vehicle))
-		{
-			AcceptEntityInput(vehicle, "HandBrakeOn");
-			
-			return vehicle;
-		}
-	}
+	int vehicle = CreateVehicleNoSpawn(config, origin, angles, owner);
 	
-	return -1;
+	DispatchSpawn(vehicle);
+	AcceptEntityInput(vehicle, "HandBrakeOn");
+	
+	return vehicle;
 }
 
-bool TeleportEntityToClientViewPos(int entity, int client, int mask)
+int CreateVehicleNoSpawn(VehicleConfig config, float origin[3], float angles[3], int owner)
 {
-	float posStart[3], posEnd[3], angles[3], mins[3], maxs[3];
+	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	
-	GetEntPropVector(entity, Prop_Data, "m_vecMins", mins);
-	GetEntPropVector(entity, Prop_Data, "m_vecMaxs", maxs);
+	char targetname[256];
+	Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
 	
-	GetClientEyePosition(client, posStart);
+	DispatchKeyValue(vehicle, "targetname", targetname);
+	DispatchKeyValue(vehicle, "model", config.model);
+	DispatchKeyValue(vehicle, "vehiclescript", config.script);
+	DispatchKeyValue(vehicle, "spawnflags", "1"); //SF_PROP_VEHICLE_ALWAYSTHINK
+	DispatchKeyValueVector(vehicle, "origin", origin);
+	DispatchKeyValueVector(vehicle, "angles", angles);
+	
+	SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
+	SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
+	
+	Vehicle(vehicle).Owner = owner;
+	
+	return vehicle;
+}
+
+bool GetClientViewPos(int client, int entity, int mask, float position[3], float angles[3])
+{
+	GetClientEyePosition(client, position);
 	GetClientEyeAngles(client, angles);
 	
-	if (TR_PointOutsideWorld(posStart))
+	if (TR_PointOutsideWorld(position))
 		return false;
 	
-	//Get end position for hull
-	Handle trace = TR_TraceRayFilterEx(posStart, angles, mask, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
-	TR_GetEndPosition(posEnd, trace);
-	delete trace;
+	//Get end position
+	TR_TraceRayFilter(position, angles, mask, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
+	TR_GetEndPosition(position);
 	
-	//Get new end position
-	trace = TR_TraceHullFilterEx(posStart, posEnd, mins, maxs, mask, TraceEntityFilter_DontHitEntity, client);
-	TR_GetEndPosition(posEnd, trace);
-	delete trace;
+	//Adjust for hull of passed in entity
+	if (entity != -1)
+	{
+		float mins[3], maxs[3];
+		GetEntPropVector(entity, Prop_Data, "m_vecMins", mins);
+		GetEntPropVector(entity, Prop_Data, "m_vecMaxs", maxs);
+		
+		TR_TraceHullFilter(position, position, mins, maxs, mask, TraceEntityFilter_DontHitEntity, client);
+		TR_GetEndPosition(position);
+	}
 	
-	//We don't want the entity angle to consider the x-axis
+	//Ignore angle on the x-axis
 	angles[0] = 0.0;
-	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
 	
 	return true;
 }
@@ -995,11 +995,15 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	if (!TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
+	float position[3], angles[3];
+	if (GetClientViewPos(client, vehicle, (MASK_SOLID | MASK_WATER), position, angles))
+	{
+		TeleportEntity(vehicle, position, angles);
+	}
+	else
 	{
 		RemoveEntity(vehicle);
 		LogError("Failed to teleport vehicle: %s", id);
-		return Plugin_Handled;
 	}
 	
 	return Plugin_Handled;
@@ -1565,7 +1569,7 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 				//Snap the driver's view where the vehicle is facing
 				float origin[3], angles[3];
 				if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
-					TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
+					TeleportEntity(client, .angles = angles);
 				
 				CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
 			}
