@@ -350,8 +350,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
 	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
 	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
-	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
-	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_GENERIC, "Reload vehicle configuration");
+	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_BAN, "Remove all vehicles");
+	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_CONFIG, "Reload vehicle configuration");
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
@@ -1242,10 +1242,10 @@ void DisplayMainVehicleMenu(int client)
 	if (CheckCommandAccess(client, "sm_vehicle_remove", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_remove", "#Menu_Item_RemovePlayerVehicles");
 	
-	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
+	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_BAN))
 		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
 	
-	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_GENERIC))
+	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_CONFIG))
 		menu.AddItem("vehicle_reload", "#Menu_Item_ReloadVehicleConfig");
 	
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -1271,7 +1271,7 @@ void DisplayRemoveVehicleTargetMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_RemovePlayerVehicles, MenuAction_Select | MenuAction_End);
 	menu.SetTitle("%T", "#Menu_Title_RemovePlayerVehicles", client);
-	menu.ExitBackButton = true;
+	menu.ExitBackButton = CheckCommandAccess(client, "sm_vehicle", ADMFLAG_GENERIC);
 	
 	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
 	
