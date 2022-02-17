@@ -810,13 +810,15 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 		}
 		else
 		{
-			return ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
+			ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
 		}
 	}
 	else
 	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
 	}
+	
+	return -1;
 }
 
 public int NativeCall_VehicleOwnerGet(Handle plugin, int numParams)
@@ -908,8 +910,10 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 	}
 	else
 	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
 	}
+	
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
