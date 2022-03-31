@@ -163,7 +163,7 @@ enum struct VehicleConfig
 			
 			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
 			kv.GetString("key_hint", this.key_hint, sizeof(this.key_hint));
-			this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
+			this.is_passenger_visible = kv.GetNum("is_passenger_visible", true) != 0;
 			
 			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
 			if (this.horn_sound[0] != '\0')
