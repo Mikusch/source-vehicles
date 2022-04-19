@@ -647,7 +647,7 @@ bool IsOverturned(int vehicle)
 	float up[3];
 	GetAngleVectors(angles, NULL_VECTOR, NULL_VECTOR, up);
 	
-	float upDot = GetVectorDotProduct(view_as<float>( { 0.0, 0.0, 1.0 } ), up);
+	float upDot = GetVectorDotProduct({ 0.0, 0.0, 1.0 }, up);
 	
 	// Tweak this number to adjust what's considered "overturned"
 	if (upDot < 0.0)
