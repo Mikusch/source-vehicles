@@ -446,6 +446,8 @@ public void OnMapStart()
 	int vehicle = MaxClients + 1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
+		Vehicle.Register(vehicle);
+		
 		SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
 		SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
 		SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
