@@ -626,6 +626,11 @@ bool IsEntityVehicle(int entity)
 	return IsValidEntity(entity) && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
 }
 
+bool IsInAVehicle(int client)
+{
+	return GetEntPropEnt(client, Prop_Data, "m_hVehicle") != -1;
+}
+
 Address GetServerVehicle(int vehicle)
 {
 	static int offset = -1;
@@ -1126,6 +1131,14 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 
 public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
+	// Player got damaged inside vehicle
+	if (IsEntityClient(attacker) && IsInAVehicle(victim) && attacker != victim)
+	{
+		damage *= vehicle_passenger_damage_modifier.FloatValue;
+		return Plugin_Changed;
+	}
+	
+	// Player got hit by a vehicle
 	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
 	{
 		int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
