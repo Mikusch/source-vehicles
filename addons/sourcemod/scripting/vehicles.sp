@@ -81,9 +81,7 @@ Handle g_SDKCallGetInVehicle;
 
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
-
-char g_OldAllowPlayerUse[8];
-char g_OldTurboPhysics[8];
+ArrayList g_ConVars;
 
 bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
@@ -206,6 +204,13 @@ enum struct VehicleProperties
 {
 	int entity;
 	int owner;
+}
+
+enum struct ConVarData
+{
+	ConVar convar;
+	char desiredValue[COMMAND_MAX_LENGTH];
+	char initialValue[COMMAND_MAX_LENGTH];
 }
 
 methodmap Player
@@ -357,6 +362,7 @@ public void OnPluginStart()
 	
 	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
+	g_ConVars = new ArrayList(sizeof(ConVarData));
 	
 	GameData gamedata = new GameData("vehicles");
 	if (!gamedata)
@@ -393,8 +399,7 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
-	RestoreConVar("tf_allow_player_use", g_OldAllowPlayerUse);
-	RestoreConVar("sv_turbophysics", g_OldTurboPhysics);
+	OnMapEnd();
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -437,9 +442,6 @@ public void OnLibraryRemoved(const char[] name)
 
 public void OnMapStart()
 {
-	SetupConVar("tf_allow_player_use", g_OldAllowPlayerUse, sizeof(g_OldAllowPlayerUse), "1");
-	SetupConVar("sv_turbophysics", g_OldTurboPhysics, sizeof(g_OldTurboPhysics), "0");
-	
 	DHookGamerulesObject();
 	
 	// Hook all vehicles
@@ -456,8 +458,17 @@ public void OnMapStart()
 	}
 }
 
+public void OnMapEnd()
+{
+	RestoreConVar("tf_allow_player_use");
+	RestoreConVar("sv_turbophysics");
+}
+
 public void OnConfigsExecuted()
 {
+	SetupConVar("tf_allow_player_use", "1");
+	SetupConVar("sv_turbophysics", "0");
+	
 	ReadVehicleConfig();
 }
 
@@ -761,22 +772,44 @@ bool GetConfigByVehicleEnt(int vehicle, VehicleConfig buffer)
 	return GetConfigByModelAndVehicleScript(model, vehiclescript, buffer);
 }
 
-void SetupConVar(const char[] name, char[] oldValue, int maxlength, const char[] newValue)
+void SetupConVar(const char[] name, const char[] desiredValue)
 {
 	ConVar convar = FindConVar(name);
-	if (!convar)
+	if (convar)
 	{
-		convar.GetString(oldValue, maxlength);
-		convar.SetString(newValue);
+		ConVarData data;
+		data.convar = convar;
+		strcopy(data.desiredValue, sizeof(data.desiredValue), desiredValue);
+		
+		// Store the current value and override it
+		convar.GetString(data.initialValue, sizeof(data.initialValue));
+		convar.SetString(data.desiredValue);
+		
+		// Register change hook afterwards
+		convar.AddChangeHook(ConVarChanged_EnforceValue);
+		
+		g_ConVars.PushArray(data, sizeof(data));
 	}
 }
 
-void RestoreConVar(const char[] name, const char[] oldValue)
+void RestoreConVar(const char[] name)
 {
 	ConVar convar = FindConVar(name);
-	if (!convar)
+	if (convar)
 	{
-		convar.SetString(oldValue);
+		int index = g_ConVars.FindValue(convar, ConVarData::convar);
+		if (index != -1)
+		{
+			ConVarData data;
+			if (g_ConVars.GetArray(index, data, sizeof(data)) > 0)
+			{
+				// Restore the initial value
+				data.convar.RemoveChangeHook(ConVarChanged_EnforceValue);
+				data.convar.SetString(data.initialValue);
+				
+				g_ConVars.Erase(index);
+			}
+		}
 	}
 }
 
@@ -916,6 +949,27 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 public void ConVarChanged_ReloadVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	ReadVehicleConfig();
+}
+
+public void ConVarChanged_EnforceValue(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	int index = g_ConVars.FindValue(convar, ConVarData::convar);
+	if (index != -1)
+	{
+		ConVarData data;
+		if (g_ConVars.GetArray(index, data, sizeof(data)) > 0)
+		{
+			if (!StrEqual(newValue, data.desiredValue))
+			{
+				// Update the internal data with the requested value
+				strcopy(data.initialValue, sizeof(data.initialValue), newValue);
+				g_ConVars.SetArray(index, data, sizeof(data));
+				
+				// Enforce our desired value
+				convar.SetString(data.desiredValue);
+			}
+		}
+	}
 }
 
 public Action Timer_PrintVehicleKeyHint(Handle timer, int vehicleRef)
