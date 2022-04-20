@@ -118,11 +118,11 @@ enum struct VehicleConfig
 				this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
 			else if (StrEqual(type, "airboat_raycast"))
 				this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
-			else if (type[0] != '\0')
+			else if (type[0] != EOS)
 				LogError("%s: Invalid vehicle type '%s'", this.id, type);
 			
 			kv.GetString("soundscript", this.soundscript, sizeof(this.soundscript));
-			if (this.soundscript[0] != '\0')
+			if (this.soundscript[0] != EOS)
 			{
 				if (g_LoadSoundscript)
 				{
@@ -164,7 +164,7 @@ enum struct VehicleConfig
 			this.is_passenger_visible = kv.GetNum("is_passenger_visible", true) != 0;
 			
 			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
-			if (this.horn_sound[0] != '\0')
+			if (this.horn_sound[0] != EOS)
 			{
 				char filepath[PLATFORM_MAX_PATH];
 				Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
@@ -177,7 +177,7 @@ enum struct VehicleConfig
 				else
 				{
 					LogError("%s: The file '%s' does not exist", this.id, filepath);
-					this.horn_sound[0] = '\0';
+					this.horn_sound[0] = EOS;
 				}
 			}
 			
@@ -494,7 +494,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (vehicle != -1)
 		{
 			VehicleConfig config;
-			if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+			if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != EOS)
 			{
 				if (buttons & IN_ATTACK3)
 				{
@@ -982,7 +982,7 @@ public Action Timer_PrintVehicleKeyHint(Handle timer, int vehicleRef)
 		{
 			// Show different key hints based on vehicle
 			VehicleConfig config;
-			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != '\0')
+			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != EOS)
 			{
 				PrintKeyHintText(client, "%t", config.key_hint);
 			}
@@ -1265,7 +1265,7 @@ public void SDKHookCB_PropVehicleDriveable_Spawn(int vehicle)
 	VehicleConfig config;
 	
 	// If no script is set, try to find a matching config entry and set it ourselves
-	if (vehiclescript[0] == '\0' && GetConfigByModel(model, config))
+	if (vehiclescript[0] == EOS && GetConfigByModel(model, config))
 	{
 		vehiclescript = config.script;
 		DispatchKeyValue(vehicle, "VehicleScript", config.script);
@@ -1590,7 +1590,7 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 	{
 		// Stop any horn sounds when the player leaves the vehicle
 		VehicleConfig config;
-		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != EOS)
 		{
 			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 		}
