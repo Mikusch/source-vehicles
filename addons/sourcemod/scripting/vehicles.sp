@@ -15,13 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma semicolon 1
-#pragma newdecls required
-
 #include <sourcemod>
 #include <sdkhooks>
 #include <adminmenu>
 #include <dhooks>
+
+#pragma semicolon 1
+#pragma newdecls required
 
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
@@ -43,7 +43,7 @@ enum PassengerRole
 	VEHICLE_ROLE_NONE = -1,
 	VEHICLE_ROLE_DRIVER = 0,	// Only one driver
 	LAST_SHARED_VEHICLE_ROLE,
-}
+};
 
 enum VehicleType
 {
@@ -51,7 +51,7 @@ enum VehicleType
 	VEHICLE_TYPE_CAR_RAYCAST = (1 << 1),
 	VEHICLE_TYPE_JETSKI_RAYCAST = (1 << 2),
 	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3),
-}
+};
 
 bool g_LoadSoundscript;
 
@@ -323,7 +323,7 @@ methodmap Vehicle
 		// Delay by one frame to allow subplugins to access data in OnEntityDestroyed
 		RequestFrame(RequestFrameCallback_DestroyVehicle, this._entityRef);
 	}
-}
+};
 
 public Plugin myinfo =
 {
@@ -332,7 +332,7 @@ public Plugin myinfo =
 	description = "Fully functioning driveable vehicles",
 	version = PLUGIN_VERSION,
 	url = PLUGIN_URL
-}
+};
 
 //-----------------------------------------------------------------------------
 // SourceMod Forwards
