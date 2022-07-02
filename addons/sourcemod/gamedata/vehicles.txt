@@ -273,13 +273,13 @@
 			}
 			"CBasePlayer::GetInVehicle"
 			{
-				"linux"		"401"
-				"windows"	"400"
+				"linux"		"402"
+				"windows"	"401"
 			}
 			"CBasePlayer::LeaveVehicle"
 			{
-				"linux"		"402"
-				"windows"	"401"
+				"linux"		"403"
+				"windows"	"402"
 			}
 		}
 	}
