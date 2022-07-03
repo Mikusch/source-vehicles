@@ -209,8 +209,8 @@ enum struct VehicleProperties
 enum struct ConVarData
 {
 	ConVar convar;
-	char desiredValue[COMMAND_MAX_LENGTH];
-	char initialValue[COMMAND_MAX_LENGTH];
+	char desiredValue[256];
+	char initialValue[256];
 }
 
 methodmap Player
