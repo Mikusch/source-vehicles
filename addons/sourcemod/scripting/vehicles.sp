@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2021  Mikusch
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,14 @@
 #include <adminmenu>
 #include <dhooks>
 
+#pragma semicolon 1
+#pragma newdecls required
+
 #undef REQUIRE_EXTENSIONS
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#pragma semicolon 1
-#pragma newdecls required
-
-#define PLUGIN_VERSION	"2.3.5"
+#define PLUGIN_VERSION	"2.4.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -43,7 +43,7 @@ enum PassengerRole
 	VEHICLE_ROLE_NONE = -1,
 	VEHICLE_ROLE_DRIVER = 0,	// Only one driver
 	LAST_SHARED_VEHICLE_ROLE,
-}
+};
 
 enum VehicleType
 {
@@ -51,7 +51,7 @@ enum VehicleType
 	VEHICLE_TYPE_CAR_RAYCAST = (1 << 1),
 	VEHICLE_TYPE_JETSKI_RAYCAST = (1 << 2),
 	VEHICLE_TYPE_AIRBOAT_RAYCAST = (1 << 3),
-}
+};
 
 bool g_LoadSoundscript;
 
@@ -60,9 +60,6 @@ ConVar vehicle_physics_damage_modifier;
 ConVar vehicle_passenger_damage_modifier;
 ConVar vehicle_enable_entry_exit_anims;
 ConVar vehicle_enable_horns;
-
-GlobalForward g_ForwardOnVehicleSpawned;
-GlobalForward g_ForwardOnVehicleDestroyed;
 
 DynamicHook g_DHookShouldCollide;
 DynamicHook g_DHookSetPassenger;
@@ -74,7 +71,6 @@ DynamicHook g_DHookLeaveVehicle;
 
 Handle g_SDKCallVehicleSetupMove;
 Handle g_SDKCallCanEnterVehicle;
-Handle g_SDKCallLookupAttachment;
 Handle g_SDKCallGetAttachmentLocal;
 Handle g_SDKCallGetVehicleEnt;
 Handle g_SDKCallHandlePassengerEntry;
@@ -85,9 +81,7 @@ Handle g_SDKCallGetInVehicle;
 
 ArrayList g_AllVehicles;
 ArrayList g_VehicleProperties;
-
-char g_OldAllowPlayerUse[8];
-char g_OldTurboPhysics[8];
+ArrayList g_ConVars;
 
 bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
@@ -108,20 +102,11 @@ enum struct VehicleConfig
 	
 	void ReadConfig(KeyValues kv)
 	{
-		if (kv.GetSectionName(this.id, 256))
+		if (kv.GetSectionName(this.id, sizeof(this.id)))
 		{
-			//TODO: Remove deprecated code (deprecated since: 2.3.1)
-			char id[256];
-			kv.GetString("id", id, sizeof(id));
-			if (id[0] != '\0')
-			{
-				strcopy(this.id, 256, id);
-				LogMessage("%s: The 'id' property is deprecated and subject to removal in a future version, use the section name instead", this.id);
-			}
-			
-			kv.GetString("name", this.name, 256);
-			kv.GetString("model", this.model, PLATFORM_MAX_PATH);
-			kv.GetString("script", this.script, PLATFORM_MAX_PATH);
+			kv.GetString("name", this.name, sizeof(this.name));
+			kv.GetString("model", this.model, sizeof(this.model));
+			kv.GetString("script", this.script, sizeof(this.script));
 			
 			char type[32];
 			kv.GetString("type", type, sizeof(type));
@@ -133,11 +118,11 @@ enum struct VehicleConfig
 				this.type = VEHICLE_TYPE_JETSKI_RAYCAST;
 			else if (StrEqual(type, "airboat_raycast"))
 				this.type = VEHICLE_TYPE_AIRBOAT_RAYCAST;
-			else if (type[0] != '\0')
+			else if (type[0] != EOS)
 				LogError("%s: Invalid vehicle type '%s'", this.id, type);
 			
-			kv.GetString("soundscript", this.soundscript, PLATFORM_MAX_PATH);
-			if (this.soundscript[0] != '\0')
+			kv.GetString("soundscript", this.soundscript, sizeof(this.soundscript));
+			if (this.soundscript[0] != EOS)
 			{
 				if (g_LoadSoundscript)
 				{
@@ -175,24 +160,24 @@ enum struct VehicleConfig
 			}
 			
 			this.lock_speed = kv.GetFloat("lock_speed", 10.0);
-			kv.GetString("key_hint", this.key_hint, 256);
-			this.is_passenger_visible = view_as<bool>(kv.GetNum("is_passenger_visible", true));
+			kv.GetString("key_hint", this.key_hint, sizeof(this.key_hint));
+			this.is_passenger_visible = kv.GetNum("is_passenger_visible", true) != 0;
 			
-			kv.GetString("horn_sound", this.horn_sound, PLATFORM_MAX_PATH);
-			if (this.horn_sound[0] != '\0')
+			kv.GetString("horn_sound", this.horn_sound, sizeof(this.horn_sound));
+			if (this.horn_sound[0] != EOS)
 			{
 				char filepath[PLATFORM_MAX_PATH];
 				Format(filepath, sizeof(filepath), "sound/%s", this.horn_sound);
 				if (FileExists(filepath, true))
 				{
 					AddFileToDownloadsTable(filepath);
-					Format(this.horn_sound, PLATFORM_MAX_PATH, ")%s", this.horn_sound);
+					Format(this.horn_sound, sizeof(this.horn_sound), ")%s", this.horn_sound);
 					PrecacheSound(this.horn_sound);
 				}
 				else
 				{
 					LogError("%s: The file '%s' does not exist", this.id, filepath);
-					this.horn_sound[0] = '\0';
+					this.horn_sound[0] = EOS;
 				}
 			}
 			
@@ -221,6 +206,13 @@ enum struct VehicleProperties
 	int owner;
 }
 
+enum struct ConVarData
+{
+	ConVar convar;
+	char desiredValue[256];
+	char initialValue[256];
+}
+
 methodmap Player
 {
 	public Player(int client)
@@ -228,15 +220,23 @@ methodmap Player
 		return view_as<Player>(client);
 	}
 	
+	property int _client
+	{
+		public get()
+		{
+			return view_as<int>(this);
+		}
+	}
+	
 	property bool InUse
 	{
 		public get()
 		{
-			return g_ClientInUse[this];
+			return g_ClientInUse[this._client];
 		}
 		public set(bool value)
 		{
-			g_ClientInUse[this] = value;
+			g_ClientInUse[this._client] = value;
 		}
 	}
 	
@@ -244,11 +244,11 @@ methodmap Player
 	{
 		public get()
 		{
-			return g_ClientIsUsingHorn[this];
+			return g_ClientIsUsingHorn[this._client];
 		}
 		public set(bool value)
 		{
-			g_ClientIsUsingHorn[this] = value;
+			g_ClientIsUsingHorn[this._client] = value;
 		}
 	}
 	
@@ -270,7 +270,7 @@ methodmap Vehicle
 	{
 		public get()
 		{
-			//Doubly convert it to ensure it is an entity reference
+			// Doubly convert it to ensure it is an entity reference
 			return EntIndexToEntRef(EntRefToEntIndex(view_as<int>(this)));
 		}
 	}
@@ -304,7 +304,7 @@ methodmap Vehicle
 		if (!IsValidEntity(entity))
 			return false;
 		
-		//Doubly convert it to ensure it is an entity reference
+		// Doubly convert it to ensure it is an entity reference
 		entity = EntIndexToEntRef(EntRefToEntIndex(entity));
 		
 		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
@@ -320,15 +320,10 @@ methodmap Vehicle
 	
 	public void Destroy()
 	{
-		//Delay by one frame to allow subplugins to access data in OnEntityDestroyed
+		// Delay by one frame to allow subplugins to access data in OnEntityDestroyed
 		RequestFrame(RequestFrameCallback_DestroyVehicle, this._entityRef);
 	}
-	
-	public static void InitializePropertyList()
-	{
-		g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
-	}
-}
+};
 
 public Plugin myinfo =
 {
@@ -337,7 +332,7 @@ public Plugin myinfo =
 	description = "Fully functioning driveable vehicles",
 	version = PLUGIN_VERSION,
 	url = PLUGIN_URL
-}
+};
 
 //-----------------------------------------------------------------------------
 // SourceMod Forwards
@@ -348,29 +343,29 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	LoadTranslations("vehicles.phrases");
 	
-	//Create plugin convars
-	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder");
+	// Create plugin convars
+	vehicle_config_path = CreateConVar("vehicle_config_path", "configs/vehicles/vehicles.cfg", "Path to vehicle configuration file, relative to the SourceMod folder.");
 	vehicle_config_path.AddChangeHook(ConVarChanged_ReloadVehicleConfig);
-	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players", _, true, 0.0);
-	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers", _, true, 0.0);
-	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations (experimental)");
-	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns");
+	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players.", _, true, 0.0);
+	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers.", _, true, 0.0);
+	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations.");
+	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns.");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
 	RegAdminCmd("sm_vehicle_create", ConCmd_CreateVehicle, ADMFLAG_GENERIC, "Create new vehicle");
 	RegAdminCmd("sm_vehicle_removeaim", ConCmd_RemoveAimTargetVehicle, ADMFLAG_GENERIC, "Remove vehicle at crosshair");
 	RegAdminCmd("sm_vehicle_remove", ConCmd_RemovePlayerVehicles, ADMFLAG_GENERIC, "Remove player vehicles");
-	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_GENERIC, "Remove all vehicles");
-	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_GENERIC, "Reload vehicle configuration");
+	RegAdminCmd("sm_vehicle_removeall", ConCmd_RemoveAllVehicles, ADMFLAG_BAN, "Remove all vehicles");
+	RegAdminCmd("sm_vehicle_reload", ConCmd_ReloadVehicleConfig, ADMFLAG_CONFIG, "Reload vehicle configuration");
 	
 	AddCommandListener(CommandListener_VoiceMenu, "voicemenu");
 	
-	Vehicle.InitializePropertyList();
-	
+	g_VehicleProperties = new ArrayList(sizeof(VehicleProperties));
 	g_AllVehicles = new ArrayList(sizeof(VehicleConfig));
+	g_ConVars = new ArrayList(sizeof(ConVarData));
 	
 	GameData gamedata = new GameData("vehicles");
-	if (gamedata == null)
+	if (!gamedata)
 		SetFailState("Could not find vehicles gamedata");
 	
 	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
@@ -384,7 +379,6 @@ public void OnPluginStart()
 	
 	g_SDKCallVehicleSetupMove = PrepSDKCall_VehicleSetupMove(gamedata);
 	g_SDKCallCanEnterVehicle = PrepSDKCall_CanEnterVehicle(gamedata);
-	g_SDKCallLookupAttachment = PrepSDKCall_LookupAttachment(gamedata);
 	g_SDKCallGetAttachmentLocal = PrepSDKCall_GetAttachmentLocal(gamedata);
 	g_SDKCallGetVehicleEnt = PrepSDKCall_GetVehicleEnt(gamedata);
 	g_SDKCallHandlePassengerEntry = PrepSDKCall_HandlePassengerEntry(gamedata);
@@ -395,7 +389,7 @@ public void OnPluginStart()
 	
 	delete gamedata;
 	
-	//Hook all clients
+	// Hook all clients
 	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (IsClientInGame(client))
@@ -405,8 +399,7 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
-	RestoreConVar("tf_allow_player_use", g_OldAllowPlayerUse);
-	RestoreConVar("sv_turbophysics", g_OldTurboPhysics);
+	OnMapEnd();
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -421,10 +414,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("Vehicle.ForcePlayerOut", NativeCall_VehicleForcePlayerOut);
 	CreateNative("GetVehicleName", NativeCall_GetVehicleName);
 	
-	g_ForwardOnVehicleSpawned = new GlobalForward("OnVehicleSpawned", ET_Ignore, Param_Cell);
-	g_ForwardOnVehicleDestroyed = new GlobalForward("OnVehicleDestroyed", ET_Ignore, Param_Cell);
-	
 	MarkNativeAsOptional("LoadSoundScript");
+	
+	return APLRes_Success;
 }
 
 public void OnAllPluginsLoaded()
@@ -450,32 +442,40 @@ public void OnLibraryRemoved(const char[] name)
 
 public void OnMapStart()
 {
-	SetupConVar("tf_allow_player_use", g_OldAllowPlayerUse, sizeof(g_OldAllowPlayerUse), "1");
-	SetupConVar("sv_turbophysics", g_OldTurboPhysics, sizeof(g_OldTurboPhysics), "0");
-	
 	DHookGamerulesObject();
 	
-	//Hook all vehicles
+	// Hook all vehicles
 	int vehicle = MaxClients + 1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
-		SDKHook(vehicle, SDKHook_Think, PropVehicleDriveable_Think);
-		SDKHook(vehicle, SDKHook_Use, PropVehicleDriveable_Use);
-		SDKHook(vehicle, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
+		Vehicle.Register(vehicle);
+		
+		SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
+		SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
+		SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
 		
 		DHookVehicle(GetServerVehicle(vehicle));
 	}
 }
 
+public void OnMapEnd()
+{
+	RestoreConVar("tf_allow_player_use");
+	RestoreConVar("sv_turbophysics");
+}
+
 public void OnConfigsExecuted()
 {
+	SetupConVar("tf_allow_player_use", "1");
+	SetupConVar("sv_turbophysics", "0");
+	
 	ReadVehicleConfig();
 }
 
 public void OnClientPutInServer(int client)
 {
 	DHookClient(client);
-	SDKHook(client, SDKHook_OnTakeDamage, Client_OnTakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamage, SDKHookCB_Client_OnTakeDamage);
 	Player(client).Reset();
 }
 
@@ -494,7 +494,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (vehicle != -1)
 		{
 			VehicleConfig config;
-			if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+			if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != EOS)
 			{
 				if (buttons & IN_ATTACK3)
 				{
@@ -522,11 +522,11 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		Vehicle.Register(entity);
 		
-		SDKHook(entity, SDKHook_Think, PropVehicleDriveable_Think);
-		SDKHook(entity, SDKHook_Use, PropVehicleDriveable_Use);
-		SDKHook(entity, SDKHook_OnTakeDamage, PropVehicleDriveable_OnTakeDamage);
-		SDKHook(entity, SDKHook_Spawn, PropVehicleDriveable_Spawn);
-		SDKHook(entity, SDKHook_SpawnPost, PropVehicleDriveable_SpawnPost);
+		SDKHook(entity, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
+		SDKHook(entity, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
+		SDKHook(entity, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
+		SDKHook(entity, SDKHook_Spawn, SDKHookCB_PropVehicleDriveable_Spawn);
+		SDKHook(entity, SDKHook_SpawnPost, SDKHookCB_PropVehicleDriveable_SpawnPost);
 	}
 }
 
@@ -537,8 +537,6 @@ public void OnEntityDestroyed(int entity)
 	
 	if (IsEntityVehicle(entity))
 	{
-		Forward_OnVehicleDestroyed(entity);
-		
 		Vehicle(entity).Destroy();
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(entity), true, true);
 	}
@@ -550,77 +548,73 @@ public void OnEntityDestroyed(int entity)
 
 int CreateVehicle(VehicleConfig config, float origin[3], float angles[3], int owner)
 {
-	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
-	if (vehicle != -1)
-	{
-		char targetname[256];
-		Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
-		
-		DispatchKeyValue(vehicle, "targetname", targetname);
-		DispatchKeyValue(vehicle, "model", config.model);
-		DispatchKeyValue(vehicle, "vehiclescript", config.script);
-		DispatchKeyValue(vehicle, "spawnflags", "1");	//SF_PROP_VEHICLE_ALWAYSTHINK
-		DispatchKeyValueVector(vehicle, "origin", origin);
-		DispatchKeyValueVector(vehicle, "angles", angles);
-		
-		SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
-		SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
-		
-		Vehicle(vehicle).Owner = owner;
-		
-		if (DispatchSpawn(vehicle))
-		{
-			AcceptEntityInput(vehicle, "HandBrakeOn");
-			
-			return vehicle;
-		}
-	}
+	int vehicle = CreateVehicleNoSpawn(config, origin, angles, owner);
 	
-	return -1;
+	DispatchSpawn(vehicle);
+	AcceptEntityInput(vehicle, "HandBrakeOn");
+	
+	return vehicle;
 }
 
-bool TeleportEntityToClientViewPos(int entity, int client, int mask)
+int CreateVehicleNoSpawn(VehicleConfig config, float origin[3], float angles[3], int owner)
 {
-	float posStart[3], posEnd[3], angles[3], mins[3], maxs[3];
+	int vehicle = CreateEntityByName(VEHICLE_CLASSNAME);
 	
-	GetEntPropVector(entity, Prop_Data, "m_vecMins", mins);
-	GetEntPropVector(entity, Prop_Data, "m_vecMaxs", maxs);
+	char targetname[256];
+	Format(targetname, sizeof(targetname), "%s_%d", config.id, vehicle);
 	
-	GetClientEyePosition(client, posStart);
+	DispatchKeyValue(vehicle, "targetname", targetname);
+	DispatchKeyValue(vehicle, "model", config.model);
+	DispatchKeyValue(vehicle, "vehiclescript", config.script);
+	DispatchKeyValue(vehicle, "spawnflags", "1"); // SF_PROP_VEHICLE_ALWAYSTHINK
+	DispatchKeyValueVector(vehicle, "origin", origin);
+	DispatchKeyValueVector(vehicle, "angles", angles);
+	
+	SetEntProp(vehicle, Prop_Data, "m_nSkin", config.skins.Get(GetRandomInt(0, config.skins.Length - 1)));
+	SetEntProp(vehicle, Prop_Data, "m_nVehicleType", config.type);
+	
+	Vehicle(vehicle).Owner = owner;
+	
+	return vehicle;
+}
+
+bool GetClientViewPos(int client, int entity, int mask, float position[3], float angles[3])
+{
+	GetClientEyePosition(client, position);
 	GetClientEyeAngles(client, angles);
 	
-	if (TR_PointOutsideWorld(posStart))
+	if (TR_PointOutsideWorld(position))
 		return false;
 	
-	//Get end position for hull
-	Handle trace = TR_TraceRayFilterEx(posStart, angles, mask, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
-	TR_GetEndPosition(posEnd, trace);
-	delete trace;
+	// Get end position
+	TR_TraceRayFilter(position, angles, mask, RayType_Infinite, TraceEntityFilter_DontHitEntity, client);
+	TR_GetEndPosition(position);
 	
-	//Get new end position
-	trace = TR_TraceHullFilterEx(posStart, posEnd, mins, maxs, mask, TraceEntityFilter_DontHitEntity, client);
-	TR_GetEndPosition(posEnd, trace);
-	delete trace;
+	// Adjust for hull of passed in entity
+	if (entity != -1)
+	{
+		float mins[3], maxs[3];
+		GetEntPropVector(entity, Prop_Data, "m_vecMins", mins);
+		GetEntPropVector(entity, Prop_Data, "m_vecMaxs", maxs);
+		
+		TR_TraceHullFilter(position, position, mins, maxs, mask, TraceEntityFilter_DontHitEntity, client);
+		TR_GetEndPosition(position);
+	}
 	
-	//We don't want the entity angle to consider the x-axis
+	// Ignore angle on the x-axis
 	angles[0] = 0.0;
-	TeleportEntity(entity, posEnd, angles, NULL_VECTOR);
+	
 	return true;
 }
 
-public bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
-{
-	return entity != data;
-}
-
-void ShowKeyHintText(int client, const char[] format, any...)
+void PrintKeyHintText(int client, const char[] format, any...)
 {
 	char buffer[256];
 	SetGlobalTransTarget(client);
 	VFormat(buffer, sizeof(buffer), format, 3);
 	
 	BfWrite bf = UserMessageToBfWrite(StartMessageOne("KeyHintText", client));
-	bf.WriteByte(1);	//One message
+	bf.WriteByte(1);	// One message
 	bf.WriteString(buffer);
 	EndMessage();
 }
@@ -641,6 +635,11 @@ bool IsEntityVehicle(int entity)
 {
 	char classname[32];
 	return IsValidEntity(entity) && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
+}
+
+bool IsInAVehicle(int client)
+{
+	return GetEntPropEnt(client, Prop_Data, "m_hVehicle") != -1;
 }
 
 Address GetServerVehicle(int vehicle)
@@ -666,19 +665,19 @@ bool IsOverturned(int vehicle)
 	float up[3];
 	GetAngleVectors(angles, NULL_VECTOR, NULL_VECTOR, up);
 	
-	float upDot = GetVectorDotProduct(view_as<float>( { 0.0, 0.0, 1.0 } ), up);
+	float upDot = GetVectorDotProduct({ 0.0, 0.0, 1.0 }, up);
 	
-	//Tweak this number to adjust what's considered "overturned"
+	// Tweak this number to adjust what's considered "overturned"
 	if (upDot < 0.0)
 		return true;
 	
 	return false;
 }
 
-//This is pretty much an exact copy of CPropVehicleDriveable::CanEnterVehicle
+// This is pretty much an exact copy of CPropVehicleDriveable::CanEnterVehicle
 bool CanEnterVehicle(int client, int vehicle)
 {
-	//Prevent entering if the vehicle's being driven by another player
+	// Prevent entering if the vehicle's being driven by another player
 	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	if (driver != -1 && driver != client)
 		return false;
@@ -686,21 +685,21 @@ bool CanEnterVehicle(int client, int vehicle)
 	if (IsOverturned(vehicle))
 		return false;
 	
-	//Prevent entering if the vehicle's locked, or if it's moving too fast.
+	// Prevent entering if the vehicle's locked, or if it's moving too fast.
 	return !GetEntProp(vehicle, Prop_Data, "m_bLocked") && GetEntProp(vehicle, Prop_Data, "m_nSpeed") <= GetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit");
 }
 
 void ReadVehicleConfig()
 {
-	//Clear previously loaded vehicles
+	// Clear previously loaded vehicles
 	g_AllVehicles.Clear();
 	
-	//Build path to config file
+	// Build path to config file
 	char file[PLATFORM_MAX_PATH], path[PLATFORM_MAX_PATH];
 	vehicle_config_path.GetString(file, sizeof(file));
 	BuildPath(Path_SM, path, sizeof(path), file);
 	
-	//Read the vehicle configuration
+	// Read the vehicle configuration
 	KeyValues kv = new KeyValues("Vehicles");
 	if (kv.ImportFromFile(path))
 	{
@@ -773,32 +772,45 @@ bool GetConfigByVehicleEnt(int vehicle, VehicleConfig buffer)
 	return GetConfigByModelAndVehicleScript(model, vehiclescript, buffer);
 }
 
-void SetupConVar(const char[] name, char[] oldValue, int maxlength, const char[] newValue)
+void SetupConVar(const char[] name, const char[] desiredValue)
 {
 	ConVar convar = FindConVar(name);
-	if (convar != null)
+	if (convar)
 	{
-		convar.GetString(oldValue, maxlength);
-		convar.SetString(newValue);
+		ConVarData data;
+		data.convar = convar;
+		strcopy(data.desiredValue, sizeof(data.desiredValue), desiredValue);
+		
+		// Store the current value and override it
+		convar.GetString(data.initialValue, sizeof(data.initialValue));
+		convar.SetString(data.desiredValue);
+		
+		// Register change hook afterwards
+		convar.AddChangeHook(ConVarChanged_EnforceValue);
+		
+		g_ConVars.PushArray(data, sizeof(data));
 	}
 }
 
-void RestoreConVar(const char[] name, const char[] oldValue)
+void RestoreConVar(const char[] name)
 {
 	ConVar convar = FindConVar(name);
-	if (convar != null)
+	if (convar)
 	{
-		convar.SetString(oldValue);
+		int index = g_ConVars.FindValue(convar, ConVarData::convar);
+		if (index != -1)
+		{
+			ConVarData data;
+			if (g_ConVars.GetArray(index, data, sizeof(data)) > 0)
+			{
+				// Restore the initial value
+				data.convar.RemoveChangeHook(ConVarChanged_EnforceValue);
+				data.convar.SetString(data.initialValue);
+				
+				g_ConVars.Erase(index);
+			}
+		}
 	}
-}
-
-//-----------------------------------------------------------------------------
-// ConVars
-//-----------------------------------------------------------------------------
-
-public void ConVarChanged_ReloadVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	ReadVehicleConfig();
 }
 
 //-----------------------------------------------------------------------------
@@ -824,13 +836,15 @@ public int NativeCall_VehicleCreate(Handle plugin, int numParams)
 		}
 		else
 		{
-			return ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
+			ThrowNativeError(SP_ERROR_NATIVE, "Failed to create vehicle: %s", id);
 		}
 	}
 	else
 	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
 	}
+	
+	return -1;
 }
 
 public int NativeCall_VehicleOwnerGet(Handle plugin, int numParams)
@@ -851,7 +865,9 @@ public int NativeCall_VehicleOwnerSet(Handle plugin, int numParams)
 	if (!IsEntityVehicle(vehicle))
 		ThrowNativeError(SP_ERROR_NATIVE, "Entity %d is not a vehicle", vehicle);
 	
-	return Vehicle(vehicle).Owner = owner;
+	Vehicle(vehicle).Owner = owner;
+	
+	return 0;
 }
 
 public int NativeCall_VehicleGetId(Handle plugin, int numParams)
@@ -886,6 +902,8 @@ public int NativeCall_VehicleForcePlayerIn(Handle plugin, int numParams)
 		ThrowNativeError(SP_ERROR_NATIVE, "Client %d is not in game", client);
 	
 	SDKCall_HandlePassengerEntry(GetServerVehicle(vehicle), client, true);
+	
+	return 0;
 }
 
 public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
@@ -898,9 +916,11 @@ public int NativeCall_VehicleForcePlayerOut(Handle plugin, int numParams)
 	int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	
 	if (client == -1)
-		return;
+		return 0;
 	
 	SDKCall_HandlePassengerExit(GetServerVehicle(vehicle), client);
+	
+	return 0;
 }
 
 public int NativeCall_GetVehicleName(Handle plugin, int numParams)
@@ -916,33 +936,43 @@ public int NativeCall_GetVehicleName(Handle plugin, int numParams)
 	}
 	else
 	{
-		return ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+		ThrowNativeError(SP_ERROR_NATIVE, "Invalid or unknown vehicle: %s", id);
+	}
+	
+	return 0;
+}
+
+//-----------------------------------------------------------------------------
+// Miscellaneous Callbacks
+//-----------------------------------------------------------------------------
+
+public void ConVarChanged_ReloadVehicleConfig(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	ReadVehicleConfig();
+}
+
+public void ConVarChanged_EnforceValue(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	int index = g_ConVars.FindValue(convar, ConVarData::convar);
+	if (index != -1)
+	{
+		ConVarData data;
+		if (g_ConVars.GetArray(index, data, sizeof(data)) > 0)
+		{
+			if (!StrEqual(newValue, data.desiredValue))
+			{
+				// Update the internal data with the requested value
+				strcopy(data.initialValue, sizeof(data.initialValue), newValue);
+				g_ConVars.SetArray(index, data, sizeof(data));
+				
+				// Enforce our desired value
+				convar.SetString(data.desiredValue);
+			}
+		}
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Forwards
-//-----------------------------------------------------------------------------
-
-void Forward_OnVehicleSpawned(int vehicle)
-{
-	Call_StartForward(g_ForwardOnVehicleSpawned);
-	Call_PushCell(vehicle);
-	Call_Finish();
-}
-
-void Forward_OnVehicleDestroyed(int vehicle)
-{
-	Call_StartForward(g_ForwardOnVehicleDestroyed);
-	Call_PushCell(vehicle);
-	Call_Finish();
-}
-
-//-----------------------------------------------------------------------------
-// Timers
-//-----------------------------------------------------------------------------
-
-public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
+public Action Timer_PrintVehicleKeyHint(Handle timer, int vehicleRef)
 {
 	int vehicle = EntRefToEntIndex(vehicleRef);
 	if (vehicle != -1)
@@ -950,25 +980,28 @@ public Action Timer_ShowVehicleKeyHint(Handle timer, int vehicleRef)
 		int client = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 		if (client != -1)
 		{
-			//Show different key hints based on vehicle
+			// Show different key hints based on vehicle
 			VehicleConfig config;
-			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != '\0')
+			if (GetConfigByVehicleEnt(vehicle, config) && config.key_hint[0] != EOS)
 			{
-				ShowKeyHintText(client, "%t", config.key_hint);
+				PrintKeyHintText(client, "%t", config.key_hint);
 			}
 		}
 	}
+	
+	return Plugin_Continue;
 }
-
-//-----------------------------------------------------------------------------
-// RequestFrame Callbacks
-//-----------------------------------------------------------------------------
 
 public void RequestFrameCallback_DestroyVehicle(int entity)
 {
 	int index = g_VehicleProperties.FindValue(entity, VehicleProperties::entity);
 	if (index != -1)
 		g_VehicleProperties.Erase(index);
+}
+
+public bool TraceEntityFilter_DontHitEntity(int entity, int mask, any data)
+{
+	return entity != data;
 }
 
 //-----------------------------------------------------------------------------
@@ -984,6 +1017,7 @@ public Action ConCmd_OpenVehicleMenu(int client, int args)
 	}
 	
 	DisplayMainVehicleMenu(client);
+	
 	return Plugin_Handled;
 }
 
@@ -1018,11 +1052,15 @@ public Action ConCmd_CreateVehicle(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	if (!TeleportEntityToClientViewPos(vehicle, client, MASK_SOLID | MASK_WATER))
+	float position[3], angles[3];
+	if (GetClientViewPos(client, vehicle, (MASK_SOLID | MASK_WATER), position, angles))
+	{
+		TeleportEntity(vehicle, position, angles);
+	}
+	else
 	{
 		RemoveEntity(vehicle);
 		LogError("Failed to teleport vehicle: %s", id);
-		return Plugin_Handled;
 	}
 	
 	return Plugin_Handled;
@@ -1111,6 +1149,7 @@ public Action ConCmd_RemoveAllVehicles(int client, int args)
 	}
 	
 	ShowActivity2(client, "[SM] ", "%t", "#Command_RemoveAllVehicles_Success");
+	
 	return Plugin_Handled;
 }
 
@@ -1119,6 +1158,7 @@ public Action ConCmd_ReloadVehicleConfig(int client, int args)
 	ReadVehicleConfig();
 	
 	ShowActivity2(client, "[SM] ", "%t", "#Command_ReloadVehicleConfig_Success");
+	
 	return Plugin_Handled;
 }
 
@@ -1130,19 +1170,29 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 	
 	if (GetEngineVersion() == Engine_TF2)
 	{
-		if (arg1[0] == '0' && arg2[0] == '0')	//MEDIC!
+		if (arg1[0] == '0' && arg2[0] == '0')	// MEDIC!
 		{
 			Player(client).InUse = true;
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 //-----------------------------------------------------------------------------
 // SDKHooks
 //-----------------------------------------------------------------------------
 
-public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
+public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
+	// Player got damaged inside vehicle
+	if (IsEntityClient(attacker) && IsInAVehicle(victim) && attacker != victim)
+	{
+		damage *= vehicle_passenger_damage_modifier.FloatValue;
+		return Plugin_Changed;
+	}
+	
+	// Player got hit by a vehicle
 	if (damagetype & DMG_VEHICLE && IsEntityVehicle(inflictor))
 	{
 		int driver = GetEntPropEnt(inflictor, Prop_Data, "m_hPlayer");
@@ -1157,7 +1207,7 @@ public Action Client_OnTakeDamage(int victim, int &attacker, int &inflictor, flo
 	return Plugin_Continue;
 }
 
-public void PropVehicleDriveable_Think(int vehicle)
+public void SDKHookCB_PropVehicleDriveable_Think(int vehicle)
 {
 	int sequence = GetEntProp(vehicle, Prop_Data, "m_nSequence");
 	bool sequenceFinished = view_as<bool>(GetEntProp(vehicle, Prop_Data, "m_bSequenceFinished"));
@@ -1172,16 +1222,16 @@ public void PropVehicleDriveable_Think(int vehicle)
 		{
 			AcceptEntityInput(vehicle, "TurnOn");
 			
-			CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
+			CreateTimer(1.5, Timer_PrintVehicleKeyHint, EntIndexToEntRef(vehicle));
 		}
 		
 		SDKCall_HandleEntryExitFinish(GetServerVehicle(vehicle), exitAnimOn, true);
 	}
 }
 
-public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
+public Action SDKHookCB_PropVehicleDriveable_Use(int vehicle, int activator, int caller, UseType type, float value)
 {
-	//Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
+	// Prevent call to ResetUseKey and HandlePassengerEntry for the driving player
 	int driver = GetEntPropEnt(vehicle, Prop_Data, "m_hPlayer");
 	if (IsEntityClient(activator) && driver != -1 && driver == activator)
 		return Plugin_Handled;
@@ -1189,24 +1239,24 @@ public Action PropVehicleDriveable_Use(int vehicle, int activator, int caller, U
 	return Plugin_Continue;
 }
 
-public Action PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
+public Action SDKHookCB_PropVehicleDriveable_OnTakeDamage(int vehicle, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 {
-	//Make the driver take the damage
+	// Make the driver take the damage
 	int client = GetEntPropEnt(vehicle, Prop_Send, "m_hPlayer");
 	if (client != -1)
 	{
-		//Never take crush damage
+		// Never take crush damage
 		if (damagetype & DMG_CRUSH)
 			return Plugin_Continue;
 		
-		//Scale the damage
+		// Scale the damage
 		SDKHooks_TakeDamage(client, inflictor, attacker, damage * vehicle_passenger_damage_modifier.FloatValue, damagetype | DMG_VEHICLE, weapon, damageForce, damagePosition);
 	}
 	
 	return Plugin_Continue;
 }
 
-public void PropVehicleDriveable_Spawn(int vehicle)
+public void SDKHookCB_PropVehicleDriveable_Spawn(int vehicle)
 {
 	char model[PLATFORM_MAX_PATH], vehiclescript[PLATFORM_MAX_PATH];
 	GetEntPropString(vehicle, Prop_Data, "m_ModelName", model, sizeof(model));
@@ -1214,8 +1264,8 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 	
 	VehicleConfig config;
 	
-	//If no script is set, try to find a matching config entry and set it ourselves
-	if (vehiclescript[0] == '\0' && GetConfigByModel(model, config))
+	// If no script is set, try to find a matching config entry and set it ourselves
+	if (vehiclescript[0] == EOS && GetConfigByModel(model, config))
 	{
 		vehiclescript = config.script;
 		DispatchKeyValue(vehicle, "VehicleScript", config.script);
@@ -1227,9 +1277,9 @@ public void PropVehicleDriveable_Spawn(int vehicle)
 	}
 }
 
-public void PropVehicleDriveable_SpawnPost(int vehicle)
+public void SDKHookCB_PropVehicleDriveable_SpawnPost(int vehicle)
 {
-	//m_pServerVehicle is initialized in Spawn so we hook it in SpawnPost
+	// m_pServerVehicle is initialized in Spawn so we hook it in SpawnPost
 	DHookVehicle(GetServerVehicle(vehicle));
 	
 	VehicleConfig config;
@@ -1237,8 +1287,6 @@ public void PropVehicleDriveable_SpawnPost(int vehicle)
 	{
 		SetEntPropFloat(vehicle, Prop_Data, "m_flMinimumSpeedToEnterExit", config.lock_speed);
 	}
-	
-	Forward_OnVehicleSpawned(vehicle);
 }
 
 //-----------------------------------------------------------------------------
@@ -1259,10 +1307,10 @@ void DisplayMainVehicleMenu(int client)
 	if (CheckCommandAccess(client, "sm_vehicle_remove", ADMFLAG_GENERIC))
 		menu.AddItem("vehicle_remove", "#Menu_Item_RemovePlayerVehicles");
 	
-	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_GENERIC))
+	if (CheckCommandAccess(client, "sm_vehicle_removeall", ADMFLAG_BAN))
 		menu.AddItem("vehicle_removeall", "#Menu_Item_RemoveAllVehicles");
 	
-	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_GENERIC))
+	if (CheckCommandAccess(client, "sm_vehicle_reload", ADMFLAG_CONFIG))
 		menu.AddItem("vehicle_reload", "#Menu_Item_ReloadVehicleConfig");
 	
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -1288,9 +1336,9 @@ void DisplayRemoveVehicleTargetMenu(int client)
 {
 	Menu menu = new Menu(MenuHandler_RemovePlayerVehicles, MenuAction_Select | MenuAction_End);
 	menu.SetTitle("%T", "#Menu_Title_RemovePlayerVehicles", client);
-	menu.ExitBackButton = true;
+	menu.ExitBackButton = CheckCommandAccess(client, "sm_vehicle", ADMFLAG_GENERIC);
 	
-	AddTargetsToMenu(menu, client);
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
 	
 	menu.Display(client, MENU_TIME_FOREVER);
 }
@@ -1425,6 +1473,8 @@ public int MenuHandler_RemovePlayerVehicles(Menu menu, MenuAction action, int pa
 			delete menu;
 		}
 	}
+	
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1434,7 +1484,7 @@ public int MenuHandler_RemovePlayerVehicles(Menu menu, MenuAction action, int pa
 void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback callbackPre = INVALID_FUNCTION, DHookCallback callbackPost = INVALID_FUNCTION)
 {
 	DynamicDetour detour = DynamicDetour.FromConf(gamedata, name);
-	if (detour != null)
+	if (detour)
 	{
 		if (callbackPre != INVALID_FUNCTION)
 			detour.Enable(Hook_Pre, callbackPre);
@@ -1451,7 +1501,7 @@ void CreateDynamicDetour(GameData gamedata, const char[] name, DHookCallback cal
 DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 {
 	DynamicHook hook = DynamicHook.FromConf(gamedata, name);
-	if (hook == null)
+	if (!hook)
 		LogError("Failed to create hook setup handle: %s", name);
 	
 	return hook;
@@ -1459,31 +1509,31 @@ DynamicHook CreateDynamicHook(GameData gamedata, const char[] name)
 
 void DHookGamerulesObject()
 {
-	if (g_DHookShouldCollide != null)
+	if (g_DHookShouldCollide)
 		g_DHookShouldCollide.HookGamerules(Hook_Post, DHookCallback_ShouldCollide);
 }
 
 void DHookClient(int client)
 {
-	if (g_DHookGetInVehicle != null)
+	if (g_DHookGetInVehicle)
 		g_DHookGetInVehicle.HookEntity(Hook_Pre, client, DHookCallback_GetInVehiclePre);
 	
-	if (g_DHookLeaveVehicle != null)
+	if (g_DHookLeaveVehicle)
 		g_DHookLeaveVehicle.HookEntity(Hook_Pre, client, DHookCallback_LeaveVehiclePre);
 }
 
 void DHookVehicle(Address serverVehicle)
 {
-	if (g_DHookSetPassenger != null)
+	if (g_DHookSetPassenger)
 		g_DHookSetPassenger.HookRaw(Hook_Pre, serverVehicle, DHookCallback_SetPassengerPre);
 	
-	if (g_DHookIsPassengerVisible != null)
+	if (g_DHookIsPassengerVisible)
 		g_DHookIsPassengerVisible.HookRaw(Hook_Post, serverVehicle, DHookCallback_IsPassengerVisiblePost);
 	
-	if (g_DHookHandlePassengerEntry != null)
+	if (g_DHookHandlePassengerEntry)
 		g_DHookHandlePassengerEntry.HookRaw(Hook_Pre, serverVehicle, DHookCallback_HandlePassengerEntryPre);
 	
-	if (g_DHookGetExitAnimToUse != null)
+	if (g_DHookGetExitAnimToUse)
 		g_DHookGetExitAnimToUse.HookRaw(Hook_Post, serverVehicle, DHookCallback_GetExitAnimToUsePost);
 }
 
@@ -1500,6 +1550,8 @@ public MRESReturn DHookCallback_SetupMovePre(DHookParam params)
 		
 		SDKCall_VehicleSetupMove(GetServerVehicle(vehicle), client, ucmd, helper, move);
 	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_ShouldCollide(DHookReturn ret, DHookParam params)
@@ -1509,13 +1561,13 @@ public MRESReturn DHookCallback_ShouldCollide(DHookReturn ret, DHookParam params
 	
 	if (collisionGroup0 > collisionGroup1)
 	{
-		//Swap so that lowest is always first
+		// Swap so that lowest is always first
 		V_swap(collisionGroup0, collisionGroup1);
 	}
 	
 	if (GetEngineVersion() == Engine_TF2)
 	{
-		//Prevent vehicles from entering respawn rooms
+		// Prevent vehicles from entering respawn rooms
 		if (collisionGroup1 == TFCOLLISION_GROUP_RESPAWNROOMS)
 		{
 			ret.Value = ret.Value || (collisionGroup0 == COLLISION_GROUP_VEHICLE);
@@ -1536,9 +1588,9 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 	}
 	else
 	{
-		//Stop any horn sounds when the player leaves the vehicle
+		// Stop any horn sounds when the player leaves the vehicle
 		VehicleConfig config;
-		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != '\0')
+		if (GetConfigByVehicleEnt(vehicle, config) && config.horn_sound[0] != EOS)
 		{
 			EmitSoundToAll(config.horn_sound, vehicle, SNDCHAN_STATIC, SNDLEVEL_AIRCRAFT, SND_STOP | SND_STOPLOOPING);
 		}
@@ -1550,6 +1602,8 @@ public MRESReturn DHookCallback_SetPassengerPre(Address serverVehicle, DHookPara
 			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", true);
 		}
 	}
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DHookReturn ret)
@@ -1571,18 +1625,18 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
 		
-		if (CanEnterVehicle(client, vehicle))	//CPropVehicleDriveable::CanEnterVehicle
+		if (CanEnterVehicle(client, vehicle))	// CPropVehicleDriveable::CanEnterVehicle
 		{
 			if (SDKCall_CanEnterVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER))	//CBasePlayer::CanEnterVehicle
 			{
 				SDKCall_GetInVehicle(client, serverVehicle, VEHICLE_ROLE_DRIVER);
 				
-				//Snap the driver's view where the vehicle is facing
+				// Snap the driver's view where the vehicle is facing
 				float origin[3], angles[3];
-				if (SDKCall_GetAttachmentLocal(vehicle, SDKCall_LookupAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
-					TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
+				if (SDKCall_GetAttachmentLocal(vehicle, LookupEntityAttachment(vehicle, "vehicle_driver_eyes"), origin, angles))
+					TeleportEntity(client, .angles = angles);
 				
-				CreateTimer(1.5, Timer_ShowVehicleKeyHint, EntIndexToEntRef(vehicle));
+				CreateTimer(1.5, Timer_PrintVehicleKeyHint, EntIndexToEntRef(vehicle));
 			}
 		}
 		
@@ -1605,16 +1659,20 @@ public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHoo
 
 public MRESReturn DHookCallback_GetInVehiclePre(int client)
 {
-	//Disable client prediction for less jittery movement
+	// Disable client prediction for less jittery movement
 	if (!IsFakeClient(client))
 		SendConVarValue(client, FindConVar("sv_client_predict"), "0");
+	
+	return MRES_Ignored;
 }
 
 public MRESReturn DHookCallback_LeaveVehiclePre(int client)
 {
-	//Re-enable client prediction
+	// Re-enable client prediction
 	if (!IsFakeClient(client))
 		SendConVarValue(client, FindConVar("sv_client_predict"), "1");
+	
+	return MRES_Ignored;
 }
 
 //-----------------------------------------------------------------------------
@@ -1631,7 +1689,7 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseServerVehicle::SetupMove");
 	
 	return call;
@@ -1646,22 +1704,8 @@ Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBasePlayer::CanEnterVehicle");
-	
-	return call;
-}
-
-Handle PrepSDKCall_LookupAttachment(GameData gamedata)
-{
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBaseAnimating::LookupAttachment");
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-	
-	Handle call = EndPrepSDKCall();
-	if (call == null)
-		LogMessage("Failed to create SDK call: CBaseAnimating::LookupAttachment");
 	
 	return call;
 }
@@ -1676,7 +1720,7 @@ Handle PrepSDKCall_GetAttachmentLocal(GameData gamedata)
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseAnimating::GetAttachmentLocal");
 	
 	return call;
@@ -1689,7 +1733,7 @@ Handle PrepSDKCall_GetVehicleEnt(GameData gamedata)
 	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseServerVehicle::GetVehicleEnt");
 	
 	return call;
@@ -1703,7 +1747,7 @@ Handle PrepSDKCall_HandlePassengerEntry(GameData gamedata)
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandlePassengerEntry");
 	
 	return call;
@@ -1717,7 +1761,7 @@ Handle PrepSDKCall_HandlePassengerExit(GameData gamedata)
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandlePassengerExit");
 	
 	return call;
@@ -1731,7 +1775,7 @@ Handle PrepSDKCall_HandleEntryExitFinish(GameData gamedata)
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogMessage("Failed to create SDK call: CBaseServerVehicle::HandleEntryExitFinish");
 	
 	return call;
@@ -1743,7 +1787,7 @@ Handle PrepSDKCall_StudioFrameAdvance(GameData gamedata)
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Virtual, "CBaseAnimating::StudioFrameAdvance");
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogError("Failed to create SDK call: CBaseAnimating::StudioFrameAdvance");
 	
 	return call;
@@ -1758,7 +1802,7 @@ Handle PrepSDKCall_GetInVehicle(GameData gamedata)
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
 	
 	Handle call = EndPrepSDKCall();
-	if (call == null)
+	if (!call)
 		LogError("Failed to create SDK call: CBasePlayer::GetInVehicle");
 	
 	return call;
@@ -1766,29 +1810,21 @@ Handle PrepSDKCall_GetInVehicle(GameData gamedata)
 
 void SDKCall_VehicleSetupMove(Address serverVehicle, int client, Address ucmd, Address helper, Address move)
 {
-	if (g_SDKCallVehicleSetupMove != null)
+	if (g_SDKCallVehicleSetupMove)
 		SDKCall(g_SDKCallVehicleSetupMove, serverVehicle, client, ucmd, helper, move);
 }
 
 bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole role)
 {
-	if (g_SDKCallCanEnterVehicle != null)
+	if (g_SDKCallCanEnterVehicle)
 		return SDKCall(g_SDKCallCanEnterVehicle, client, serverVehicle, role);
 	
 	return false;
 }
 
-int SDKCall_LookupAttachment(int entity, const char[] name)
-{
-	if (g_SDKCallLookupAttachment != null)
-		return SDKCall(g_SDKCallLookupAttachment, entity, name);
-	
-	return 0;
-}
-
 bool SDKCall_GetAttachmentLocal(int entity, int attachment, float origin[3], float angles[3])
 {
-	if (g_SDKCallGetAttachmentLocal != null)
+	if (g_SDKCallGetAttachmentLocal)
 		return SDKCall(g_SDKCallGetAttachmentLocal, entity, attachment, origin, angles);
 	
 	return false;
@@ -1796,7 +1832,7 @@ bool SDKCall_GetAttachmentLocal(int entity, int attachment, float origin[3], flo
 
 int SDKCall_GetVehicleEnt(Address serverVehicle)
 {
-	if (g_SDKCallGetVehicleEnt != null)
+	if (g_SDKCallGetVehicleEnt)
 		return SDKCall(g_SDKCallGetVehicleEnt, serverVehicle);
 	
 	return -1;
@@ -1804,13 +1840,13 @@ int SDKCall_GetVehicleEnt(Address serverVehicle)
 
 void SDKCall_HandlePassengerEntry(Address serverVehicle, int passenger, bool allowEntryOutsideZone)
 {
-	if (g_SDKCallHandlePassengerEntry != null)
+	if (g_SDKCallHandlePassengerEntry)
 		SDKCall(g_SDKCallHandlePassengerEntry, serverVehicle, passenger, allowEntryOutsideZone);
 }
 
 bool SDKCall_HandlePassengerExit(Address serverVehicle, int passenger)
 {
-	if (g_SDKCallHandlePassengerExit != null)
+	if (g_SDKCallHandlePassengerExit)
 		return SDKCall(g_SDKCallHandlePassengerExit, serverVehicle, passenger);
 	
 	return false;
@@ -1818,19 +1854,19 @@ bool SDKCall_HandlePassengerExit(Address serverVehicle, int passenger)
 
 void SDKCall_HandleEntryExitFinish(Address serverVehicle, bool exitAnimOn, bool resetAnim)
 {
-	if (g_SDKCallHandleEntryExitFinish != null)
+	if (g_SDKCallHandleEntryExitFinish)
 		SDKCall(g_SDKCallHandleEntryExitFinish, serverVehicle, exitAnimOn, resetAnim);
 }
 
 void SDKCall_StudioFrameAdvance(int entity)
 {
-	if (g_SDKCallStudioFrameAdvance != null)
+	if (g_SDKCallStudioFrameAdvance)
 		SDKCall(g_SDKCallStudioFrameAdvance, entity);
 }
 
 bool SDKCall_GetInVehicle(int client, Address serverVehicle, PassengerRole role)
 {
-	if (g_SDKCallGetInVehicle != null)
+	if (g_SDKCallGetInVehicle)
 		return SDKCall(g_SDKCallGetInVehicle, client, serverVehicle, role);
 	
 	return false;
