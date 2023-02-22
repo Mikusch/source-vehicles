@@ -24,6 +24,7 @@
 			"game"	"tf"
 			"game"	"cstrike"
 			"game"	"bms"
+			"game"	"hl2mp"
 		}
 		
 		"Signatures"
@@ -243,6 +244,7 @@
 		{
 			"game"	"tf"
 			"game"	"cstrike"
+			"game"	"hl2mp"
 		}
 		"Signatures"
 		{
@@ -310,6 +312,36 @@
 			{
 				"linux"		"395"
 				"windows"	"394"
+			}
+		}
+	}
+	
+	"hl2mp"
+	{
+		"Signatures"
+		{
+			"CBaseAnimating::GetAttachmentLocal"
+			{
+				"linux"		"@_ZN14CBaseAnimating18GetAttachmentLocalEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x90\x00\x00\x00\x53\x56"
+			}
+		}
+		"Offsets"
+		{
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"linux"		"191"
+				"windows"	"190"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"linux"		"393"
+				"windows"	"392"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"linux"		"394"
+				"windows"	"393"
 			}
 		}
 	}
