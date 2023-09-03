@@ -8,6 +8,7 @@ multiplayer games.
 * Team Fortress 2
 * Counter-Strike: Source
 * Black Mesa
+* Half-life 2: Deathmatch
 
 This plugin bundles the required entity fixes, and a few configurable nice-to-have features.
 
