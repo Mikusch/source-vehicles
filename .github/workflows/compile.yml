@@ -41,7 +41,7 @@ jobs:
       - name: Extract plugin version
         id: version
         run: |
-          VERSION=$(grep -oP '#define PLUGIN_VERSION "\K[^"]+' addons/sourcemod/scripting/${{ env.PLUGIN_NAME }}.sp)
+          VERSION=$(grep -oP '#define PLUGIN_VERSION\s*"\K[^"]+' addons/sourcemod/scripting/${{ env.PLUGIN_NAME }}.sp)
           echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Compile plugin
