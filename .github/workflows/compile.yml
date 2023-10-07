@@ -1,0 +1,63 @@
+name: Compile and Package
+
+env:
+  PLUGIN_NAME: source-vehicles
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sourcemod-version: [ '1.11' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache SourceMod distribution
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: sourcemod_dist
+          key: sourcemod-${{ matrix.sourcemod-version }}
+
+      - name: Download SourceMod
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir sourcemod_dist
+          cd sourcemod_dist
+          filename=$(curl -s https://sm.alliedmods.net/smdrop/${{ matrix.sourcemod-version }}/sourcemod-latest-linux)
+          curl -O https://sm.alliedmods.net/smdrop/${{ matrix.sourcemod-version }}/$filename
+          tar -xzf $filename
+
+      - name: Extract plugin version
+        id: version
+        run: |
+          VERSION=$(grep -oP '#define PLUGIN_VERSION "\K[^"]+' addons/sourcemod/scripting/${{ env.PLUGIN_NAME }}.sp)
+          echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Compile plugin
+        run: |
+          chmod +x sourcemod_dist/addons/sourcemod/scripting/spcomp
+          mkdir -p addons/sourcemod/plugins
+          ./sourcemod_dist/addons/sourcemod/scripting/spcomp -E addons/sourcemod/scripting/${{ env.PLUGIN_NAME }}.sp -o addons/sourcemod/plugins/${{ env.PLUGIN_NAME }}.smx
+
+      - name: Create release archive
+        run: |
+          zip -r ${{ env.PLUGIN_NAME }}-${{ env.PLUGIN_VERSION }}.zip addons/
+
+      - name: Create GitHub release
+        run: |
+          gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
+          gh config set git_protocol ssh
+          if ! gh release view ${{ env.PLUGIN_VERSION }} --repo ${{ github.repository }} > /dev/null 2>&1; then
+            gh release create ${{ env.PLUGIN_VERSION }} ./${{ env.PLUGIN_NAME }}-${{ env.PLUGIN_VERSION }}.zip -t "${{ env.PLUGIN_VERSION }}" --repo ${{ github.repository }}
+          fi
