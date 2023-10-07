@@ -1,7 +1,7 @@
 name: Compile and Package
 
 env:
-  PLUGIN_NAME: source-vehicles
+  PLUGIN_NAME: vehicles
 
 on:
   push:
