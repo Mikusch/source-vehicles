@@ -27,7 +27,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.1"
+#define PLUGIN_VERSION	"3.0.0"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -58,7 +58,6 @@ bool g_LoadSoundscript;
 ConVar vehicle_config_path;
 ConVar vehicle_physics_damage_modifier;
 ConVar vehicle_passenger_damage_modifier;
-ConVar vehicle_enable_entry_exit_anims;
 ConVar vehicle_enable_horns;
 
 DynamicHook g_DHookShouldCollide;
@@ -202,8 +201,14 @@ enum struct VehicleConfig
 
 enum struct VehicleProperties
 {
-	int entity;
+	int ref;
 	int owner;
+	
+	void Init(int ref)
+	{
+		this.ref = ref;
+		this.owner = -1;
+	}
 }
 
 enum struct ConVarData
@@ -220,7 +225,7 @@ methodmap Player
 		return view_as<Player>(client);
 	}
 	
-	property int _client
+	property int entindex
 	{
 		public get()
 		{
@@ -232,11 +237,11 @@ methodmap Player
 	{
 		public get()
 		{
-			return g_ClientInUse[this._client];
+			return g_ClientInUse[this.entindex];
 		}
 		public set(bool value)
 		{
-			g_ClientInUse[this._client] = value;
+			g_ClientInUse[this.entindex] = value;
 		}
 	}
 	
@@ -244,12 +249,17 @@ methodmap Player
 	{
 		public get()
 		{
-			return g_ClientIsUsingHorn[this._client];
+			return g_ClientIsUsingHorn[this.entindex];
 		}
 		public set(bool value)
 		{
-			g_ClientIsUsingHorn[this._client] = value;
+			g_ClientIsUsingHorn[this.entindex] = value;
 		}
+	}
+	
+	public bool IsInAVehicle()
+	{
+		return GetEntPropEnt(this.entindex, Prop_Data, "m_hVehicle") != -1;
 	}
 	
 	public void Reset()
@@ -263,23 +273,45 @@ methodmap Vehicle
 {
 	public Vehicle(int entity)
 	{
-		return view_as<Vehicle>(entity);
+		if (!IsValidEntity(entity))
+		{
+			return view_as<Vehicle>(INVALID_ENT_REFERENCE);
+		}
+		
+		int ref = IsValidEdict(entity) ? EntIndexToEntRef(entity) : entity;
+		
+		if (!Vehicle.IsReferenceTracked(ref))
+		{
+			VehicleProperties properties;
+			properties.Init(ref);
+			
+			g_VehicleProperties.PushArray(properties);
+		}
+		
+		return view_as<Vehicle>(ref);
 	}
 	
-	property int _entityRef
+	property int ref
 	{
 		public get()
 		{
-			// Doubly convert it to ensure it is an entity reference
-			return EntIndexToEntRef(EntRefToEntIndex(view_as<int>(this)));
+			return view_as<int>(this);
 		}
 	}
 	
-	property int _listIndex
+	property int entindex
 	{
 		public get()
 		{
-			return g_VehicleProperties.FindValue(this._entityRef, VehicleProperties::entity);
+			return EntRefToEntIndex(this.ref);
+		}
+	}
+	
+	property int ListIndex
+	{
+		public get()
+		{
+			return g_VehicleProperties.FindValue(this.ref, VehicleProperties::ref);
 		}
 	}
 	
@@ -287,41 +319,33 @@ methodmap Vehicle
 	{
 		public get()
 		{
-			if (this._listIndex != -1)
-				return g_VehicleProperties.Get(this._listIndex, VehicleProperties::owner);
-			
-			return -1;
+			return g_VehicleProperties.Get(this.ListIndex, VehicleProperties::owner);
 		}
 		public set(int value)
 		{
-			if (this._listIndex != -1)
-				g_VehicleProperties.Set(this._listIndex, value, VehicleProperties::owner);
+			g_VehicleProperties.Set(this.ListIndex, value, VehicleProperties::owner);
 		}
-	}
-	
-	public static bool Register(int entity)
-	{
-		if (!IsValidEntity(entity))
-			return false;
-		
-		// Doubly convert it to ensure it is an entity reference
-		entity = EntIndexToEntRef(EntRefToEntIndex(entity));
-		
-		if (g_VehicleProperties.FindValue(entity, VehicleProperties::entity) == -1)
-		{
-			VehicleProperties properties;
-			properties.entity = entity;
-			
-			g_VehicleProperties.PushArray(properties);
-		}
-		
-		return true;
 	}
 	
 	public void Destroy()
 	{
 		// Delay by one frame to allow subplugins to access data in OnEntityDestroyed
-		RequestFrame(RequestFrameCallback_DestroyVehicle, this._entityRef);
+		RequestFrame(RequestFrameCallback_DestroyVehicle, this.ref);
+	}
+	
+	public static bool IsReferenceTracked(int ref)
+	{
+		return g_VehicleProperties.FindValue(ref, VehicleProperties::ref) != -1;
+	}
+	
+	public static Vehicle Create()
+	{
+		
+	}
+	
+	public static Vehicle CreateNoSpawn()
+	{
+		
 	}
 };
 
@@ -348,7 +372,6 @@ public void OnPluginStart()
 	vehicle_config_path.AddChangeHook(ConVarChanged_ReloadVehicleConfig);
 	vehicle_physics_damage_modifier = CreateConVar("vehicle_physics_damage_modifier", "1.0", "Modifier of impact-based physics damage against other players.", _, true, 0.0);
 	vehicle_passenger_damage_modifier = CreateConVar("vehicle_passenger_damage_modifier", "1.0", "Modifier of damage dealt to vehicle passengers.", _, true, 0.0);
-	vehicle_enable_entry_exit_anims = CreateConVar("vehicle_enable_entry_exit_anims", "0", "If set to 1, enables entry and exit animations.");
 	vehicle_enable_horns = CreateConVar("vehicle_enable_horns", "1", "If set to 1, enables vehicle horns.");
 	
 	RegAdminCmd("sm_vehicle", ConCmd_OpenVehicleMenu, ADMFLAG_GENERIC, "Open vehicle menu");
@@ -448,8 +471,6 @@ public void OnMapStart()
 	int vehicle = -1;
 	while ((vehicle = FindEntityByClassname(vehicle, VEHICLE_CLASSNAME)) != -1)
 	{
-		Vehicle.Register(vehicle);
-		
 		SDKHook(vehicle, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
 		SDKHook(vehicle, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
 		SDKHook(vehicle, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
@@ -520,8 +541,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (StrEqual(classname, VEHICLE_CLASSNAME))
 	{
-		Vehicle.Register(entity);
-		
 		SDKHook(entity, SDKHook_Think, SDKHookCB_PropVehicleDriveable_Think);
 		SDKHook(entity, SDKHook_Use, SDKHookCB_PropVehicleDriveable_Use);
 		SDKHook(entity, SDKHook_OnTakeDamage, SDKHookCB_PropVehicleDriveable_OnTakeDamage);
@@ -635,11 +654,6 @@ bool IsEntityVehicle(int entity)
 {
 	char classname[32];
 	return IsValidEntity(entity) && GetEntityClassname(entity, classname, sizeof(classname)) && StrEqual(classname, VEHICLE_CLASSNAME);
-}
-
-bool IsInAVehicle(int client)
-{
-	return GetEntPropEnt(client, Prop_Data, "m_hVehicle") != -1;
 }
 
 Address GetServerVehicle(int vehicle)
@@ -811,6 +825,14 @@ void RestoreConVar(const char[] name)
 			}
 		}
 	}
+}
+
+bool ShouldPlayEntryExitAnims()
+{
+	// SharedVehicleViewSmoothing is very stupid and sets the view angles on the local player,
+	// meaning that all players have their view snapped when someone enters a vehicle in PVS.
+	// Let's not suport entry/exit animations on multiplayer.
+	return GetClientCount() == 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -994,7 +1016,7 @@ public Action Timer_PrintVehicleKeyHint(Handle timer, int vehicleRef)
 
 public void RequestFrameCallback_DestroyVehicle(int entity)
 {
-	int index = g_VehicleProperties.FindValue(entity, VehicleProperties::entity);
+	int index = g_VehicleProperties.FindValue(entity, VehicleProperties::ref);
 	if (index != -1)
 		g_VehicleProperties.Erase(index);
 }
@@ -1186,7 +1208,7 @@ public Action CommandListener_VoiceMenu(int client, const char[] command, int ar
 public Action SDKHookCB_Client_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
 	// Player got damaged inside vehicle
-	if (IsEntityClient(attacker) && IsInAVehicle(victim) && attacker != victim)
+	if (IsEntityClient(attacker) && Player(victim).IsInAVehicle() && attacker != victim)
 	{
 		damage *= vehicle_passenger_damage_modifier.FloatValue;
 		return Plugin_Changed;
@@ -1620,7 +1642,7 @@ public MRESReturn DHookCallback_IsPassengerVisiblePost(Address serverVehicle, DH
 
 public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, DHookParam params)
 {
-	if (!vehicle_enable_entry_exit_anims.BoolValue)
+	if (!ShouldPlayEntryExitAnims())
 	{
 		int client = params.Get(1);
 		int vehicle = SDKCall_GetVehicleEnt(serverVehicle);
@@ -1648,7 +1670,7 @@ public MRESReturn DHookCallback_HandlePassengerEntryPre(Address serverVehicle, D
 
 public MRESReturn DHookCallback_GetExitAnimToUsePost(Address serverVehicle, DHookReturn ret)
 {
-	if (!vehicle_enable_entry_exit_anims.BoolValue)
+	if (!ShouldPlayEntryExitAnims())
 	{
 		ret.Value = ACTIVITY_NOT_AVAILABLE;
 		return MRES_Override;
