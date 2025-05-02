@@ -41,7 +41,7 @@
 			"CGameRules::ShouldCollide"
 			{
 				"linux"		"30"
-				"windows"	"29"
+				"windows"	"30"
 			}
 			"CBaseServerVehicle::SetupMove"
 			{
@@ -270,18 +270,18 @@
 		{
 			"CBaseAnimating::StudioFrameAdvance"
 			{
-				"linux"		"201"
-				"windows"	"200"
+				"linux"		"202"
+				"windows"	"201"
 			}
 			"CBasePlayer::GetInVehicle"
 			{
-				"linux"		"405"
-				"windows"	"404"
+				"linux"		"406"
+				"windows"	"405"
 			}
 			"CBasePlayer::LeaveVehicle"
 			{
-				"linux"		"406"
-				"windows"	"405"
+				"linux"		"407"
+				"windows"	"406"
 			}
 		}
 	}
