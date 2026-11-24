@@ -9,6 +9,7 @@ multiplayer games.
 * Counter-Strike: Source
 * Black Mesa
 * Half-life 2: Deathmatch
+* Left 4 Dead 2 (Windows, see [notes](#left-4-dead-2))
 
 This plugin bundles the required entity fixes, and a few configurable nice-to-have features.
 
@@ -86,6 +87,43 @@ the [Vehicle Scripts for Source](https://steamcommunity.com/sharedfiles/filedeta
 	}
 }
 ```
+
+### Left 4 Dead 2
+
+L4D2 does not ship the Half-Life 2 vehicle assets, so you must install them on the server and (optionally) on a
+FastDL host. The default configuration can be adapted like this:
+
+```
+"hl2_jeep"
+{
+	"name"			"#Vehicle_HL2_Jeep"
+	"model"			"models/buggy.mdl"
+	"script"		"scripts/vehicles/jeep_test.txt"
+	"type"			"car_wheels"
+	"downloads"
+	{
+		"0"	"models/buggy.mdl"
+		"1"	"models/buggy.vvd"
+		"2"	"models/buggy.phy"
+		"3"	"models/buggy.dx80.vtx"
+		"4"	"models/buggy.dx90.vtx"
+		"5"	"models/buggy.sw.vtx"
+		"6"	"scripts/vehicles/jeep_test.txt"
+	}
+}
+```
+
+Use an HL2 `jeep_test.txt`/`buggy.mdl` set whose **internal model name** matches the file name, otherwise clients
+show an error model. Vehicle scripts and materials must be present on clients; with FastDL, remember L4D2 requests
+`.bz2`-compressed copies (`sv_downloadurl` must point at the folder containing `models/`, `materials/` and
+`scripts/`).
+
+Notes specific to L4D2:
+
+* `vehicle_enable_entry_exit_anims` should remain `0` (the default).
+* The `CPlayerMove::SetupMove` detour, `CGameRules::ShouldCollide` hook, and the `CanEnterVehicle` /
+  `GetAttachmentLocal` SDK calls are skipped because no verified signatures exist; driving still works.
+* The supplied offsets are for Windows. Linux offsets are not verified yet.
 
 ### ConVars
 
