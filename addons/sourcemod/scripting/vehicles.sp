@@ -27,7 +27,7 @@
 #tryinclude <loadsoundscript>
 #define REQUIRE_EXTENSIONS
 
-#define PLUGIN_VERSION	"2.4.3"
+#define PLUGIN_VERSION	"2.4.4"
 #define PLUGIN_AUTHOR	"Mikusch"
 #define PLUGIN_URL		"https://github.com/Mikusch/source-vehicles"
 
@@ -85,6 +85,7 @@ ArrayList g_ConVars;
 
 bool g_ClientInUse[MAXPLAYERS + 1];
 bool g_ClientIsUsingHorn[MAXPLAYERS + 1];
+bool g_HasHornSounds;
 
 enum struct VehicleConfig
 {
@@ -368,8 +369,16 @@ public void OnPluginStart()
 	if (!gamedata)
 		SetFailState("Could not find vehicles gamedata");
 	
-	CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
-	g_DHookShouldCollide = CreateDynamicHook(gamedata, "CGameRules::ShouldCollide");
+	// L4D2 has no verified CPlayerMove::SetupMove signature, and
+	// CreateDynamicDetour throws when a signature is missing. Driving works
+	// without this detour on L4D2, so only create it for other games.
+	if (GetEngineVersion() != Engine_Left4Dead2)
+		CreateDynamicDetour(gamedata, "CPlayerMove::SetupMove", DHookCallback_SetupMovePre);
+	
+	// The ShouldCollide callback contains TF2-specific logic only, and the
+	// L4D2 offset is incompatible, so do not hook it there.
+	if (GetEngineVersion() != Engine_Left4Dead2)
+		g_DHookShouldCollide = CreateDynamicHook(gamedata, "CGameRules::ShouldCollide");
 	g_DHookSetPassenger = CreateDynamicHook(gamedata, "CBaseServerVehicle::SetPassenger");
 	g_DHookIsPassengerVisible = CreateDynamicHook(gamedata, "CBaseServerVehicle::IsPassengerVisible");
 	g_DHookHandlePassengerEntry = CreateDynamicHook(gamedata, "CBaseServerVehicle::HandlePassengerEntry");
@@ -481,6 +490,9 @@ public void OnClientPutInServer(int client)
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
+	if (!IsValidEntity(client))
+		return Plugin_Continue;
+	
 	if (Player(client).InUse)
 	{
 		Player(client).InUse = false;
@@ -488,7 +500,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Changed;
 	}
 	
-	if (vehicle_enable_horns.BoolValue)
+	// Avoid a per-frame entity lookup when no configured vehicle has a horn.
+	if (vehicle_enable_horns.BoolValue && g_HasHornSounds)
 	{
 		int vehicle = GetEntPropEnt(client, Prop_Data, "m_hVehicle");
 		if (vehicle != -1)
@@ -639,7 +652,7 @@ bool IsEntityVehicle(int entity)
 
 bool IsInAVehicle(int client)
 {
-	return GetEntPropEnt(client, Prop_Data, "m_hVehicle") != -1;
+	return IsValidEntity(client) && GetEntPropEnt(client, Prop_Data, "m_hVehicle") != -1;
 }
 
 Address GetServerVehicle(int vehicle)
@@ -693,6 +706,7 @@ void ReadVehicleConfig()
 {
 	// Clear previously loaded vehicles
 	g_AllVehicles.Clear();
+	g_HasHornSounds = false;
 	
 	// Build path to config file
 	char file[PLATFORM_MAX_PATH], path[PLATFORM_MAX_PATH];
@@ -711,6 +725,8 @@ void ReadVehicleConfig()
 				VehicleConfig config;
 				config.ReadConfig(kv);
 				g_AllVehicles.PushArray(config);
+				if (config.horn_sound[0] != EOS)
+					g_HasHornSounds = true;
 			}
 			while (kv.GotoNextKey(false));
 			kv.GoBack();
@@ -1697,6 +1713,10 @@ Handle PrepSDKCall_VehicleSetupMove(GameData gamedata)
 
 Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 {
+	// L4D2 has no verified signature; SDKCall_CanEnterVehicle() falls back safely.
+	if (GetEngineVersion() == Engine_Left4Dead2)
+		return null;
+	
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBasePlayer::CanEnterVehicle");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
@@ -1712,6 +1732,10 @@ Handle PrepSDKCall_CanEnterVehicle(GameData gamedata)
 
 Handle PrepSDKCall_GetAttachmentLocal(GameData gamedata)
 {
+	// L4D2 has no verified signature; the view snap is simply skipped.
+	if (GetEngineVersion() == Engine_Left4Dead2)
+		return null;
+	
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(gamedata, SDKConf_Signature, "CBaseAnimating::GetAttachmentLocal");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
@@ -1819,7 +1843,9 @@ bool SDKCall_CanEnterVehicle(int client, Address serverVehicle, PassengerRole ro
 	if (g_SDKCallCanEnterVehicle)
 		return SDKCall(g_SDKCallCanEnterVehicle, client, serverVehicle, role);
 	
-	return false;
+	// On L4D2, CanEnterVehicle() above already validates speed, role and
+	// vehicle state, so allow entry when the SDK call is unavailable.
+	return GetEngineVersion() == Engine_Left4Dead2;
 }
 
 bool SDKCall_GetAttachmentLocal(int entity, int attachment, float origin[3], float angles[3])

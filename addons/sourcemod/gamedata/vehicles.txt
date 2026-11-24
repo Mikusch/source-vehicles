@@ -380,4 +380,23 @@
 			}
 		}
 	}
+	
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"CBaseAnimating::StudioFrameAdvance"
+			{
+				"windows"	"202"
+			}
+			"CBasePlayer::GetInVehicle"
+			{
+				"windows"	"422"
+			}
+			"CBasePlayer::LeaveVehicle"
+			{
+				"windows"	"423"
+			}
+		}
+	}
 }
