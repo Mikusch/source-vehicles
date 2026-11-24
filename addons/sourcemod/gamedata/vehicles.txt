@@ -41,7 +41,7 @@
 			"CGameRules::ShouldCollide"
 			{
 				"linux"		"30"
-				"windows"	"30"
+				"windows"	"29"
 			}
 			"CBaseServerVehicle::SetupMove"
 			{
